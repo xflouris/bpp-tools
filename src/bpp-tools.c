@@ -184,6 +184,7 @@ void cmd_none()
             "bpp-tools --explode --msa FILENAME --output FILENAME\n"
             "bpp-tools --extract CSV --msa FILENAME --output FILENAME\n"
             "bpp-tools --subsample CSV --msa FILENAME --output FILENAME\n"
+            "bpp-tools --dstat CSV --msa FILENAME\n"
             "\n",
             progname);
 }

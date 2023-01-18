@@ -122,7 +122,6 @@ void cmd_extract()
 
   /* count number of specimens and sequences in list */
   sp_count = seq_count = 0;
-  printf("Tokens:\n");
   for (i = 0; i < token_count; ++i)
   {
     assert(tokens[i]);
@@ -130,8 +129,6 @@ void cmd_extract()
       ++sp_count;
     else
       ++seq_count;
-
-    printf("%ld : %s\n", i, tokens[i]);
   }
 
   /* allocate arrays for storing speciments and sequences */
@@ -150,6 +147,7 @@ void cmd_extract()
 
   /* TODO: check for duplicates */
 
+  #if 0
   /* print */
   printf("Specimens:\n");
   for (i = 0; i < sp_count; ++i)
@@ -157,6 +155,7 @@ void cmd_extract()
   printf("Sequences:\n");
   for (i = 0; i < seq_count; ++i)
     printf("%ld : %s\n", i, seq_tokens[i]);
+  #endif
 
   /* open phylip file */
   fp_in = phylip_open(opt_msafile, pll_map_fasta);

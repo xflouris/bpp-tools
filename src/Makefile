@@ -39,7 +39,7 @@ PROG=bpp-tools
 all: $(PROG)
 
 OBJS=bpp-tools.o util.o arch.o hash.o phylip.o maps.o msa.o dstat.o hardware.o \
-     explode.o list.o extract.o
+     explode.o list.o extract.o remove.o
 
 $(PROG): $(OBJS)
 	$(CC) $(CFLAGS) -o $@ $+ $(LIBS) $(LDFLAGS)

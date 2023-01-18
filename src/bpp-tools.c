@@ -44,6 +44,7 @@ char * opt_msafile;
 char * opt_outfile;
 char * opt_dstat;
 char * opt_extract;
+char * opt_remove;
 
 long mmx_present;
 long sse_present;
@@ -67,6 +68,7 @@ static struct option long_options[] =
   {"out",          required_argument, 0, 0 },  /*  5 */
   {"explode",      no_argument,       0, 0 },  /*  6 */
   {"extract",      required_argument, 0, 0 },  /*  7 */
+  {"remove",       required_argument, 0, 0 },  /*  8 */
   { 0, 0, 0, 0 }
 };
 
@@ -126,6 +128,10 @@ void args_init(int argc, char ** argv)
         opt_extract = xstrdup(optarg);
         break;
 
+      case 8:
+        opt_remove = xstrdup(optarg);
+        break;
+
 
       default:
         fatal("Internal error in option parsing");
@@ -148,6 +154,8 @@ void args_init(int argc, char ** argv)
     commands++;
   if (opt_extract)
     commands++;
+  if (opt_remove)
+    commands++;
 
   /* if more than one independent command, fail */
   if (commands > 1)
@@ -169,6 +177,7 @@ static void dealloc_switches()
   if (opt_msafile) free(opt_msafile);
   if (opt_outfile) free(opt_outfile);
   if (opt_extract) free(opt_extract);
+  if (opt_remove) free(opt_remove);
 }
 
 void cmd_none()
@@ -183,6 +192,7 @@ void cmd_none()
             "\n"
             "bpp-tools --explode --msa FILENAME --output FILENAME\n"
             "bpp-tools --extract CSV --msa FILENAME --output FILENAME\n"
+            "bpp-tools --remove CSV --msa FILENAME --output FILENAME\n"
             "bpp-tools --subsample CSV --msa FILENAME --output FILENAME\n"
             "bpp-tools --dstat CSV --msa FILENAME\n"
             "\n",
@@ -277,6 +287,10 @@ int main (int argc, char * argv[])
   else if (opt_extract)
   {
     cmd_extract();
+  }
+  else if (opt_remove)
+  {
+    cmd_remove();
   }
   else
     cmd_none();

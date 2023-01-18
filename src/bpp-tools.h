@@ -281,6 +281,7 @@ extern char * opt_msafile;
 extern char * opt_outfile;
 extern char * opt_dstat;
 extern char * opt_extract;
+extern char * opt_remove;
 
 /* common data */
 
@@ -437,3 +438,6 @@ long list_delitem(list_t * list, list_item_t * item, void (*cb_dealloc)(void *))
 
 /* functions in extract.c */
 void cmd_extract();
+
+/* functions in remove.c */
+void cmd_remove();

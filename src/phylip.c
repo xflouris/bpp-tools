@@ -98,7 +98,8 @@ static char * reallocline(phylip_t * fd, size_t newmaxsize)
   return temp;
 }
 
-static char * getnextline(phylip_t * fd)
+/* TODO: check with parse.c and parsemap.c */
+static char * getnextline2(phylip_t * fd)
 {
   size_t len = 0;
 
@@ -253,7 +254,7 @@ static char * parse_oneline_sequence(phylip_t * fd,
       }
     }
     else
-      p = getnextline(fd);
+      p = getnextline2(fd);
   }
 
   return p;
@@ -296,7 +297,7 @@ phylip_t * phylip_open(const char * filename,
     fd->stripped[i] = 0;
 
   /* cache line */
-  if (!getnextline(fd))
+  if (!getnextline2(fd))
   {
     if (fd->line)
       free(fd->line);
@@ -321,7 +322,7 @@ int phylip_rewind(phylip_t * fd)
   for(i=0; i<256; i++)
     fd->stripped[i] = 0;
 
-  if (!getnextline(fd))
+  if (!getnextline2(fd))
     fatal("Unable to rewind and cache data");
 
   fd->lineno = 1;
@@ -355,7 +356,7 @@ msa_t * phylip_parse_interleaved(phylip_t * fd)
 
   msa_t * msa = (msa_t *)xmalloc(sizeof(msa_t));
 
-  while (emptyline(fd->line)) getnextline(fd);
+  while (emptyline(fd->line)) getnextline2(fd);
 
   /* read header */
   if (!parse_header(fd->line,
@@ -382,7 +383,7 @@ msa_t * phylip_parse_interleaved(phylip_t * fd)
   while (1)
   {
     /* get next line */
-    char * p = getnextline(fd);
+    char * p = getnextline2(fd);
 
     /* if no more lines break */
     if (!p) break;
@@ -460,7 +461,7 @@ msa_t * phylip_parse_interleaved(phylip_t * fd)
   int block_count = 2;
   while (1)
   {
-    char * p = getnextline(fd);
+    char * p = getnextline2(fd);
 
     /* read (and parse) the first line (starting from p) that contains at
        least one character */
@@ -513,7 +514,7 @@ msa_t * phylip_parse_sequential(phylip_t * fd)
 
   msa_t * msa = (msa_t *)xcalloc(1,sizeof(msa_t));
 
-  while (emptyline(fd->line)) getnextline(fd);
+  while (emptyline(fd->line)) getnextline2(fd);
     
   /* read header */
   if (!parse_header(fd->line,
@@ -536,7 +537,7 @@ msa_t * phylip_parse_sequential(phylip_t * fd)
   while (1)
   {
     /* get next line */
-    char * p = getnextline(fd);
+    char * p = getnextline2(fd);
 
     /* if no more lines break */
     if (!p) break;
@@ -595,7 +596,7 @@ msa_t * phylip_parse_sequential(phylip_t * fd)
       if (j == msa->length)
         break;
 
-      p = getnextline(fd);
+      p = getnextline2(fd);
 
       if (!p)
       {
@@ -664,7 +665,7 @@ msa_t ** phylip_parse_multisequential(phylip_t * fd, long * count)
     while (1)
     {
       /* get next line */
-      p = getnextline(fd);
+      p = getnextline2(fd);
 
       /* if no more lines break */
       if (!p) break;

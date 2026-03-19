@@ -44,6 +44,7 @@ static const unsigned int map_solid_and_biallelic[256] =
    0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
    0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
  };
+
 static const double allele_weights[256][4] =
  {
    {  0,   0,   0,   0},
@@ -291,42 +292,25 @@ static const double allele_weights[256][4] =
    {  0,   0,   0,   0},
    {  0,   0,   0,   0},
    {  0,   0,   0,   0},
+   {  0,   0,   0,   0},
+   {  0,   0,   0,   0},
+   {  0,   0,   0,   0},
+   {  0,   0,   0,   0},
+   {  0,   0,   0,   0},
+   {  0,   0,   0,   0},
+   {  0,   0,   0,   0},
+   {  0,   0,   0,   0},
+   {  0,   0,   0,   0},
+   {  0,   0,   0,   0},
    {  0,   0,   0,   0}
  };
-
-static long perms[6][4] =
- {
-   {0,1,2,3},
-   {0,2,1,3},
-   {1,0,2,3},
-   {1,2,0,3},
-   {2,0,1,3},
-   {2,1,0,3}
- };
-
-static long getnumdigits(long n)
-{
-  if (n == 0) return 1;
-  return (long)(floor(log10(labs(n))+1));
-}
-
-static int cb_cmp_double(const void * a, const void * b)
-{
-  double * x = (double *)a;
-  double * y = (double *)b;
-
-  if (*x > *y) return 1;
-  if (*x < *y) return -1;
-
-  return 0;
-}
 
 /* given the indices of four species (species), we condense the alignment (msa)
    by collecting all sequences from those species using the index structure
    and the maparray
 
    Params:
-     msa      : the concatenated alignment
+     msa      : the concatenated alignment 
      maparray : the list of mappings (individual->species)
      index    : points to species element for given sequence in msa (0 to 3)
      species  : the 4 species to be used for d, points to maparray indices
@@ -396,8 +380,6 @@ static char ** map_sequences_to_species(msa_t * msa,
 
     if (!li)
     {
-      for (j = 0; j < i; ++j)
-        free(labels[j]);
       free(labels);
       return NULL;
     }
@@ -458,10 +440,12 @@ static char ** map_sequences_to_species(msa_t * msa,
   return sp_labels;
 }
 
+#if 1
 static msa_t * condense_msa(msa_t * msa,
                             long * sp_seqassign,
                             char ** sp_labels,
                             long species_count,
+//                            long * sp_seqcount,
                             double ** vecptr)
 {
   /* TODO: Assert that we have 4 species */
@@ -481,6 +465,26 @@ static msa_t * condense_msa(msa_t * msa,
                                            sizeof(unsigned int));
 
   sitevec = (double *)xmalloc((size_t)species_count*4*sizeof(double));
+
+  /* calculate amount of space needed for condensed alignment */
+  for (i = 0; i < msa->length; ++i)
+  {
+    /* reset character */
+    for (j = 0; j < species_count; ++j)
+      sp_allele_code[j] = 0;
+
+    for (j = 0; j < msa->count; ++j)
+    {
+      sp_index = sp_seqassign[j]; 
+
+      /* upto biallelic characters */
+      if (map_solid_and_biallelic[(int)msa->sequence[j][i]])
+      {
+        /* update allele character for species sp_index */
+        sp_allele_code[sp_index] |= pll_map_nt[(int)msa->sequence[j][i]];
+      }
+    }
+  }
 
   /* allocate msa */
   newmsa = (msa_t *)xcalloc(1,sizeof(msa_t));
@@ -537,7 +541,6 @@ static msa_t * condense_msa(msa_t * msa,
       }
       pvec += 4;
     }
-
     ++m;
   }
 
@@ -545,6 +548,22 @@ static msa_t * condense_msa(msa_t * msa,
   free(sitevec);
 
   *vecptr = vec;
+
+  #if 0
+  printf("[DBG] printing vec\n");
+  for (i = 0; i < species_count; ++i)
+  {
+    printf("%s\n", sp_labels[i]);
+    for (j = 0; j < newmsa->length; ++j)
+    {
+      double * v = vec + 4*(species_count*j+i);
+      printf(" %ld:([%f,%f,%f,%f)", j+1, v[0], v[1], v[2], v[3]);
+    }
+    printf("\n");
+  }
+  for (i = 0; i < species_count; ++i)
+    printf(" %s -> %ld\n", sp_labels[i], sp_seqcount[i]);
+  #endif
 
   /* normalize */
   /* TODO: this is wrong, we ened sp_seqcount to be over sites*species, e.g. store # sequences at each site */
@@ -563,12 +582,34 @@ static msa_t * condense_msa(msa_t * msa,
   free(sp_allele_code);
   return newmsa;
 }
+#endif
+
+static void debug_print_vec(double * vec, msa_t * msa)
+{
+  long i,j;
+  long species;
+
+  species = msa->count;
+
+  xdebug("Per site nucleotide character probability vectors for each species:");
+  for (i = 0; i < species; ++i)
+  {
+    xdebug("%s  ", msa->label[i]);
+    for (j = 0; j < msa->length; ++j)
+    {
+      double * v = vec + 4*(species*j+i);
+      xdebug(" %ld:[%f,%f,%f,%f]", j+1, v[0], v[1], v[2], v[3]);
+    }
+    printf("\n");
+  }
+}
 
 static msa_t * subsample_msa(msa_t * msa,
                              char ** labels,
                              double * vec,
                              double * abba_vec,
                              double * baba_vec,
+                             double * bbaa_vec,
                              double **outvec,
                              long labels_count)
 {
@@ -577,8 +618,8 @@ static msa_t * subsample_msa(msa_t * msa,
   msa_t * newmsa;
   long span;
 
-  v = (double *)xmalloc((size_t)(labels_count*NT_CHARS*msa->length)*sizeof(double));
   span = NT_CHARS*labels_count;
+  v = (double *)xmalloc((size_t)(span*msa->length)*sizeof(double));
 
   /* allocate new alignment data structure */
   newmsa = (msa_t *)xcalloc(1,sizeof(msa_t));
@@ -610,12 +651,13 @@ static msa_t * subsample_msa(msa_t * msa,
   }
   *outvec = v;
 
-  /* pre-calculate per-site per-species abba-baba scores */
+  /* new code to precalculate per-site per-species abba-baba scores */
   #if defined(SAVINGS)
   double * sitevec = v;
   assert(newmsa->count == 4);
   memset(abba_vec,0,msa->length*sizeof(double));
   memset(baba_vec,0,msa->length*sizeof(double));
+  memset(bbaa_vec,0,msa->length*sizeof(double));
   for (i = 0; i < msa->length; ++i)
   {
     double * sp1 = sitevec+0x00;
@@ -629,149 +671,428 @@ static msa_t * subsample_msa(msa_t * msa,
       {
         if (j == k)
           continue;
-
+        
         abba_vec[i] += sp1[j]*sp2[k]*sp3[k]*sp4[j];
         baba_vec[i] += sp1[k]*sp2[j]*sp3[k]*sp4[j];
+        bbaa_vec[i] += sp1[k]*sp2[k]*sp3[j]*sp4[j];
       }
     }
     sitevec += 16;
   }
+  if (opt_debug)
+  {
+    /* abba */
+    printf("abba_vec:");
+    printf("  [%.6f", abba_vec[0]);
+    for (i = 1; i < msa->length; ++i)
+    {
+      printf(",%.6f", abba_vec[i]);
+    }
+    printf("]\n");
+
+    /* baba */
+    printf("baba_vec:");
+    printf("  [%.6f", baba_vec[0]);
+    for (i = 1; i < msa->length; ++i)
+    {
+      printf(",%.6f", baba_vec[i]);
+    }
+    printf("]\n");
+
+    /* bbaa */
+    printf("bbaa_vec:");
+    printf("  [%.6f", bbaa_vec[0]);
+    for (i = 1; i < msa->length; ++i)
+    {
+      printf(",%.6f", bbaa_vec[i]);
+    }
+    printf("]\n");
+  }
+
+
   #endif
   return newmsa;
 }
 
-static char ** split4(const char * s)
+static long within_clade(rnode_t * node, rnode_t * clade_root)
+{
+  rnode_t * p = node;
+
+  while (p && p != clade_root)
+    p = p->parent;
+
+  return !!p;
+}
+
+static int cb_cmp_double_asc(const void * a, const void * b)
+{
+  double * x = (double *)a;
+  double * y = (double *)b;
+
+  if ( *x > *y) return 1;
+  if ( *x < *y) return -1;
+  return 0;
+}
+
+static double median_A(msa_t * condmsa,
+                       rnode_t ** a_tips,
+                       long a_tip_count,
+                       rnode_t * B,
+                       rnode_t * C,
+                       rnode_t * O,
+                       double * vec,
+                       double *abba_vec,
+                       double *baba_vec,
+                       double *bbaa_vec)
 {
   long i,k;
-  long commas_count = 0;
-  char ** taxa = NULL;
+  double mgamma;
+  double abba = 0;
+  double baba = 0;
+  double bbaa = 0;
+  char * taxa[4];
+  double * vgamma;
 
-  /* compute number of commas in list of tips */
-  for (i = 0; i < (long)strlen(s); ++i)
-    if (s[i] == ',')
-      ++commas_count;
+  /* vector for storing gammas */
+  vgamma = (double *)xcalloc((size_t)a_tip_count,sizeof(double));
 
-  if (commas_count+1 != 4)
-    fatal("ABBA-BABA test requires exactly four taxa");
-
-  taxa = (char **)xmalloc((size_t)(commas_count+1) * sizeof(char *));
-
-  k = 0;
-  while (*s)
+  /* go through each A population */
+  for (i = 0; i < a_tip_count; ++i)
   {
-    /* get next taxon */
-    size_t taxon_len = strcspn(s,",");
-    if (!taxon_len)
-      fatal("Erroneous format in --dstat (taxon missing)");
+    rnode_t * A = a_tips[i];
 
-    taxa[k++] = xstrndup(s, taxon_len);
+    /* build quartet */
+    taxa[0] = A->label;
+    taxa[1] = B->label;
+    taxa[2] = C->label;
+    taxa[3] = O->label;
 
-    s += taxon_len;
-    assert(*s == ',' || *s == '\0');
-    if (*s == ',')
-      ++s;
-  }
+    /* extract alignment and pattern counts for quartet */
+    double * outvec = NULL;
+    msa_t * ss = subsample_msa(condmsa,
+                               taxa,
+                               vec,
+                               abba_vec,
+                               baba_vec,
+                               bbaa_vec,
+                               &outvec,
+                               4);
 
-  return taxa;
-}
-
-static double resample_condensed_save(msa_t ** msa_list,
-                                      msa_t * ss,
-                                      double * abba_vec,
-                                      double * baba_vec,
-                                      long count)
-{
-  long i,j;
-  long indices;
-  long * spos = NULL;
-  long * rindex = NULL;
-  double abba_count = 0;
-  double baba_count = 0;
-
-  rindex = (long *)xmalloc((size_t)count*sizeof(long));
-  /* calculate starting position of each locus in condensed subsampled msa */
-  spos = (long *)xmalloc((size_t)count*sizeof(long));
-  spos[0] = 0;
-  for (i = 1; i < count; ++i)
-    spos[i] = spos[i-1] + msa_list[i-1]->length;
-
-  for (i = 0; i < count; ++i)
-    rindex[i] = (long)(rndu(0)*count);
-
-  for (i = 0; i < count; ++i)
-  {
-    long length = msa_list[rindex[i]]->length;
-
-    for (j = 0; j < length; ++j)
+    if (opt_debug)
     {
-      indices = (long)(rndu(0)*length);
-
-      abba_count += abba_vec[spos[rindex[i]] + indices];
-      baba_count += baba_vec[spos[rindex[i]] + indices];
+      xdebug("Finding median_A...");
+      xdebug("Triplet: (((%s,%s),%s),%s)",
+             taxa[0],taxa[1],taxa[2],taxa[3]);
+      xdebug("Alignment:");
+      phylip_print(stdout, ss);
     }
+
+    /* compute pattern counts */
+    abba = baba = bbaa = 0;
+    for (k = 0; k < ss->length; ++k)
+    {
+      abba += abba_vec[k];
+      baba += baba_vec[k];
+      bbaa += bbaa_vec[k];
+    }
+
+    /* claculate gamma */
+    vgamma[i] = (bbaa <= baba || abba <= baba) ?
+                  0 : (bbaa - baba)/(bbaa - 2*baba + abba);
+
+    /* dealloc */
+    msa_destroy(ss);
+    free(outvec);
   }
 
-  free(rindex);
-  free(spos);
-  if (abba_count + baba_count == 0) return 0;
-  return ((abba_count - baba_count) / (abba_count + baba_count));
+  /* sort gammas in ascending order */
+  if (a_tip_count>1)
+    qsort(vgamma, a_tip_count,sizeof(double),cb_cmp_double_asc);
+
+  assert(a_tip_count);
+
+  /* get gamma median value */
+  mgamma = (a_tip_count % 2) ? 
+    vgamma[a_tip_count/2] : (vgamma[a_tip_count/2-1]+vgamma[a_tip_count/2])/2;
+
+
+  if (opt_debug)
+  {
+    printf("    vgamma: [ %f", vgamma[0]);
+    for (i = 1; i < a_tip_count; ++i)
+      printf(",%f",vgamma[i]);
+    printf("] gamma: %f\n", mgamma);
+  }
+
+  free(vgamma);
+  return mgamma;
 }
 
-static double * jackknife(msa_t ** msa_list,
-                          msa_t * ss,
-                          double * abba_vec,
-                          double * baba_vec,
-                          long count)
+static long min_b(msa_t * condmsa,
+                  rnode_t ** a_tips,
+                  long a_tip_count,
+                  rnode_t ** b_tips,
+                  long b_tip_count,
+                  rnode_t * C,
+                  rnode_t * O,
+                  double * vec,
+                  double *abba_vec,
+                  double *baba_vec,
+                  double *bbaa_vec)
 {
   long i,j,k;
-  long * spos = NULL;
-  double abba_count = 0;
-  double baba_count = 0;
-  double * D;
+  long minB_index = 0;
+  rnode_t * A = NULL;
+  rnode_t * B;
+  char * taxa[4];
+  double mingamma = 0;
 
-  /* calculate starting position of each locus in condensed subsampled msa */
-  spos = (long *)xmalloc((size_t)count*sizeof(long));
-  D = (double *)xmalloc((size_t)count*sizeof(double));
-  spos[0] = 0;
-  for (i = 1; i < count; ++i)
-    spos[i] = spos[i-1] + msa_list[i-1]->length;
-
-  /* create count jacknife samples */
-  for (i = 0; i < count; ++i)
+  for (i = 0; i < b_tip_count; ++i)
   {
-    /* one jackknife sample */
-    abba_count = 0;
-    baba_count = 0;
-    for (j = 0; j < count; ++j)
+    B = b_tips[i];
+    for (j = 0; j < a_tip_count; ++j)
     {
-      if (i == j) continue;
+      A = a_tips[j];
 
-      for (k = 0; k < msa_list[j]->length; ++k)
+      /* calculate score */
+      taxa[0] = A->label;
+      taxa[1] = B->label;
+      taxa[2] = C->label;
+      taxa[3] = O->label;
+
+      double * outvec = NULL;
+      msa_t * ss = subsample_msa(condmsa,
+                                 taxa,
+                                 vec,
+                                 abba_vec,
+                                 baba_vec,
+                                 bbaa_vec,
+                                 &outvec,
+                                 4);
+
+      if (opt_debug)
       {
-        abba_count += abba_vec[spos[j] + k];
-        baba_count += baba_vec[spos[j] + k];
+        xdebug("Finding min_B...");
+        xdebug("Triplet: (((%s,%s),%s),%s)",
+               taxa[0],taxa[1],taxa[2],taxa[3]);
+        xdebug("Alignment:");
+        phylip_print(stdout, ss);
       }
+      double abba = 0;
+      double baba = 0;
+      double bbaa = 0;
+      for (k = 0; k < ss->length; ++k)
+      {
+        abba += abba_vec[k];
+        baba += baba_vec[k];
+        bbaa += bbaa_vec[k];
+      }
+      double gamma = 0;
+      gamma = (bbaa-baba)/(bbaa-2*baba+abba);
+      #if 0
+      printf("  abba=%f; baba=%f; bbaa=%f", abba,baba,bbaa);
+      printf("  Gamma: %f\n", gamma);
+      #endif
+      if (i == j && i == 0)
+      {
+        mingamma = gamma;
+        minB_index = 0;
+      }
+      else
+      {
+        if (gamma < mingamma)
+        {
+          mingamma = gamma;
+          minB_index = i;
+        }
+      }
+      msa_destroy(ss);
+      free(outvec);
     }
-    if (abba_count + baba_count == 0)
-      D[i] = 0;
-    else
-      D[i] = (abba_count - baba_count) / (abba_count + baba_count);
   }
-
-  free(spos);
-
-  return D;
+  #if 0
+  printf("  Min gamma: %f\n", mingamma);
+  #endif
+  return minB_index;
 }
 
-void cmd_dstat()
+static void fill_tips(rnode_t * root, rnode_t ** outvec, long * index)
+{
+  if (!root->left)
+  {
+    /* tip node */
+    assert(!root->right);
+
+    outvec[*index] = root;
+    (*index)++;
+    return;
+  }
+
+  assert(root->left && root->right);
+  fill_tips(root->left,  outvec, index);
+  fill_tips(root->right, outvec, index);
+}
+
+static char * center(const char * s, int space)
+{
+  char * r;
+  int len = (int)strlen(s);
+  int left,right;
+
+  left  = (space-len)/2;
+  right = space-len-left;
+
+  xasprintf(&r, "%*s%s%*s", left, "", s, right, "");
+
+  return r;
+}
+
+static void print_matrix(double ** m, long r, long c, rnode_t * outgroup,
+                         rtree_t * rtree)
+{
+  long i,j;
+  int * digits;
+  int prec = 3;
+  char na[] = "N/A";
+
+  /* calculate max number of digits per column (for correct alignment) */
+  digits = (int *)xcalloc((size_t)c,sizeof(int));
+  for (i = 0; i < c; ++i)
+    digits[i] = MAX((int)floor(log10(i+1)+1),strlen(rtree->nodes[i]->label));
+
+  assert(r > 0 && c > 0);
+
+  for (i = 0; i < c; ++i)
+  {
+    for (j = 0; j < r; ++j)
+    {
+      if (m[j][i] == -1)
+        digits[i] = MAX(digits[i],strlen(na));
+      else
+      {
+        int d = (int)floor(log10(fabs(m[j][i])+1)+1);
+        d += prec+1;
+        if (m[j][i] < 0) d++;
+        digits[i] = MAX(digits[i],d);
+      }
+    }
+  }
+
+  char * x = NULL;
+  printf("    ");
+  if (rtree->nodes[0] != outgroup)
+  {
+    x = center(rtree->nodes[0]->label,digits[0]);
+    printf("%s",x);
+    free(x);
+  }
+  for (i = 1; i < c; ++i)
+  {
+    /* skip outgroup column */
+    if (rtree->nodes[i] == outgroup) continue;
+
+    x = center(rtree->nodes[i]->label,digits[i]);
+    printf("  %s",x);
+    free(x);
+  }
+  printf("\n");
+
+  for (i = 0; i < r; ++i)
+  {
+    /* skip outgroup row */
+    if (rtree->nodes[i]->label && rtree->nodes[i] == outgroup) continue;
+
+    /* skip these 4 branches */
+    if (!rtree->nodes[i]->parent) continue;
+    if (rtree->nodes[i]->parent)
+    {
+      if (!rtree->nodes[i]->parent->parent) continue;
+      else if (!rtree->nodes[i]->parent->parent->parent)
+        continue;
+    }
+
+    printf("%2ld  ", i);
+    if (rtree->nodes[0] != outgroup)
+    {
+      if (m[i][0] == -1)
+        printf("%*s",digits[0],na);
+      else
+      {
+        xasprintf(&x,"%.*f",prec,m[i][0]);
+        printf("%*s", digits[0],x);
+        free(x);
+      }
+    }
+    for (j = 1; j < c; ++j)
+    {
+      if (rtree->nodes[j] == outgroup) continue;
+
+      if (m[i][j] == -1)
+        printf("  %*s",digits[j],na);
+      else
+      {
+        xasprintf(&x,"%.*f",prec,m[i][j]);
+        printf("  %*s", digits[j],x);
+        free(x);
+      }
+    }
+    printf("\n");
+  }
+
+  free(digits);
+}
+
+static void set_height(rnode_t * root)
+{
+  if (!root->left)
+  {
+    /* tip */
+    assert(!root->right);
+    root->height = 1;
+    return;
+  }
+
+  set_height(root->left);
+  set_height(root->right);
+
+  root->height = MAX(root->left->height, root->right->height)+1;
+}
+
+static void set_tau_uniformly(rtree_t * rtree)
+{
+  long i;
+
+  long maxheight = rtree->root->height;
+  rtree->root->tau = 1;
+  for (i = 0; i < rtree->tip_count+rtree->inner_count; ++i)
+  {
+    rnode_t * x = rtree->nodes[i];
+    if (!x->parent) continue;
+
+    x->tau = x->height*(rtree->root->tau/(double)maxheight);
+  }
+}
+
+static long is_emptyline(const char * line)
+{
+  size_t ws = strspn(line, " \t\r\n");
+  if (!line[ws] || line[ws] == '*' || line[ws] == '#') return 1;
+  return 0;
+}
+
+void cmd_fbranch()
 {
   long i,j;
   long msa_count;
+  char * newick;
+  FILE * fp_tree;
   phylip_t * fd;
   msa_t ** msa_list;
 
-  if (opt_ci_alpha <= 0 || opt_ci_alpha >= 1)
-    fatal("Confidence interval alpha must be in (0,1)");
+  if (!opt_msafile)
+    fatal("Specify alignment using --msafile");
+  if (!opt_outgroup)
+    fatal("Specify outgroup using --outgroup");
 
   /* open phylip file */
   fd = phylip_open(opt_msafile, pll_map_fasta);
@@ -781,7 +1102,6 @@ void cmd_dstat()
   /* read alignment */
   msa_list = phylip_parse_multisequential(fd, &msa_count);
   assert(msa_list);
-
   phylip_close(fd);
 
   if (!opt_mapfile)
@@ -789,237 +1109,245 @@ void cmd_dstat()
 
   list_t * maplist = parse_mapfile(opt_mapfile);
 
-  /* check that all tags are present in the map file */
-
-
-  char ** taxa_list = split4(opt_dstat);
-
   /* concatenate (possibly) multiple alignments and fill in missing data */
   msa_t * concat = concatenate(msa_list, msa_count);
 
   if (opt_debug)
   {
-    xdebug(ANSI_COLOR_RED "1. PHYLIP alignment loaded from %s" ANSI_COLOR_RESET, opt_msafile);
+    xdebug(ANSI_COLOR_RED "1. PHYLIP alignment loaded from %s" ANSI_COLOR_RESET,
+           opt_msafile);
     phylip_print(stdout, concat);
   }
 
-  long * index = NULL;
-  long sp_count = 0;
-  long * sp_seqcount = NULL;
-  char ** sp_labels;
-  sp_labels = map_sequences_to_species(concat, maplist, &index, &sp_seqcount, &sp_count);
-  if (!sp_labels)
-    fatal("Failed to map all sequences to species. "
-          "Check that the map file contains entries for all individuals.");
-
-  double * vec;
-  msa_t * condmsa = condense_msa(concat, index, sp_labels, sp_count, &vec);
-
-  if (opt_debug)
-  {
-    xdebug(ANSI_COLOR_RED "2. Condensed alignment:" ANSI_COLOR_RESET);
-    phylip_print(stdout, condmsa);
-
-    xdebug("Per site nucleotide character probability vectors for each species:");
-    for (i = 0; i < sp_count; ++i)
-    {
-      xdebug("%s  ", sp_labels[i]);
-      for (j = 0; j < condmsa->length; ++j)
-      {
-        double * v = vec + 4*(sp_count*j+i);
-        xdebug(" %ld:([%f,%f,%f,%f)", j+1, v[0], v[1], v[2], v[3]);
-      }
-      printf("\n");
-    }
-  }
-
-
-  char * cilabel = NULL;
-  if (opt_ci_alpha == 0.05)
-    xasprintf(&cilabel, "95%% CI");
-  else
-    xasprintf(&cilabel, "%.1f%% CI", (1-opt_ci_alpha)*100);
-
-  const char * colnames[] = {"D", "f(abba)", "f(baba)", cilabel, "tree"};
-  long colsize[5] = {0,0,0,0,0};
-
-  long t;
-
-  char ** taxa = (char **)xmalloc((size_t)4*sizeof(char *));
-
-  double * dilist = (double *)xmalloc((size_t)opt_bscount * sizeof(double));
-
-
-  double * abba_vec = (double *)xmalloc((size_t)condmsa->length * sizeof(double));
-  double * baba_vec = (double *)xmalloc((size_t)condmsa->length * sizeof(double));
-
-  /* TF: 7/12/2023
-  changed to iterate 6 permutaions */
-  for (t = 0; t < 6; ++t)
-  {
-    taxa[0] = taxa_list[perms[t][0]];
-    taxa[1] = taxa_list[perms[t][1]];
-    taxa[2] = taxa_list[perms[t][2]];
-    taxa[3] = taxa_list[perms[t][3]];
-
-    /* subsampling */
-    double * outvec = NULL;
-    msa_t * ss = subsample_msa(condmsa,
-                               taxa,
-                               vec,
-                               abba_vec,
-                               baba_vec,
-                               &outvec,
-                               4);
-
-    if (opt_debug)
-    {
-      xdebug(ANSI_COLOR_RED "3. Filtered alignment for 4 species: %s" ANSI_COLOR_RESET, opt_dstat);
-      phylip_print(stdout, ss);
-    }
-
-    if (opt_debug)
-    {
-      xdebug("Per site nucleotide character probability vectors for each species:");
-      for (i = 0; i < ss->count; ++i)
-      {
-        xdebug("%s  ", ss->label[i]);
-        for (j = 0; j < ss->length; ++j)
-        {
-          double * v = outvec + 4*(ss->count*j+i);
-          xdebug(" %ld:([%f,%f,%f,%f)", j+1, v[0], v[1], v[2], v[3]);
-        }
-      }
-      xdebug("");
-    }
-
-    double fabba = 0;
-    double fbaba = 0;
-    for (i = 0; i < ss->length; ++i)
-    {
-      fabba += abba_vec[i];
-      fbaba += baba_vec[i];
-    }
-    double dscore = (fabba + fbaba != 0) ? (fabba - fbaba) / (fabba + fbaba) : 0;
-
-    if (t == 0)
-    {
-      colsize[0] = getnumdigits((long)dscore) + 1+1+1+6; // extra,sign,dot,floats
-      colsize[1] = getnumdigits((long)fabba) + 4+1+6;  // extra,dot,floats
-      colsize[2] = getnumdigits((long)fbaba) + 4+1+6;  // extra,dot,floats
-      colsize[3] = 2*(getnumdigits((long)dscore)+2)+ 2+1+2+2+12; // extra,pars,comma,sign,dots,float
-      colsize[4] = 10; //3 commas, 3 opars, 3 cpars, semicolon
-      for (i = 0; i < 4; ++i)
-        colsize[4] += strlen(taxa[i]);
-
-      long totalsize = 0;
-      for (i = 0; i < 5; ++i)
-      {
-        int lpadd = (int)((colsize[i] - strlen(colnames[i]))/2);
-        int rpadd = (int)(colsize[i] - strlen(colnames[i]) - lpadd);
-        printf("%*s%s%*s",
-               lpadd, "",
-               colnames[i],
-               rpadd, "");
-        if (i != 4)
-        {
-          printf(" ");
-          totalsize++;
-        }
-        totalsize += colsize[i];
-      }
-      printf("\n");
-      for (i = 0; i < totalsize; ++i)
-      {
-        printf("=");
-      }
-      printf("\n");
-
-    }
-
-    if (opt_debug)
-    {
-      xdebug("");
-      xdebug(ANSI_COLOR_RED "4. Resampling and bootstraping..." ANSI_COLOR_RESET);
-      xdebug("");
-    }
-
-    rnd_init();
-    for (i = 0; i < opt_bscount; ++i)
-    {
-      dilist[i] = resample_condensed_save(msa_list, ss, abba_vec, baba_vec, msa_count);
-    }
-
-    qsort(dilist, opt_bscount, sizeof(double), cb_cmp_double);
-
-    char * ci = NULL;
-    double ci_lo = dilist[(long)(opt_bscount*(opt_ci_alpha/2))];
-    double ci_hi = dilist[(long)(opt_bscount*(1-opt_ci_alpha/2))];
-
-    double * djack = jackknife(msa_list, ss, abba_vec, baba_vec, msa_count);
-    qsort(djack, msa_count, sizeof(double), cb_cmp_double);
-    char * jack_ci = NULL;
-    double jack_ci_lo = djack[0];
-    double jack_ci_hi = djack[msa_count-1];
-    xasprintf(&jack_ci, "(%.6f,%.6f)", jack_ci_lo, jack_ci_hi);
-
-    xasprintf(&ci, "(%.6f,%.6f)", ci_lo, ci_hi);
-    if (opt_ansi && (ci_lo > 0 || ci_hi < 0))
-      printf(ANSI_COLOR_RED);
-
-    printf("%*.6f %*.6f %*.6f %*s (((%s,%s),%s),%s);\n",
-           (int)colsize[0], dscore,
-           (int)colsize[1], fabba,
-           (int)colsize[2], fbaba,
-           (int)colsize[3], ci,
-           taxa[0],taxa[1],taxa[2],taxa[3]);
-    if (opt_ansi && (ci_lo > 0 || ci_hi < 0))
-      printf(ANSI_COLOR_RESET);
-    free(ci);
-
-    free(jack_ci);
-
-    free(outvec);
-    msa_destroy(ss);
-
-    free(djack);
-  }
-  free(dilist);
-
-
-  for (i = 0; i < sp_count; ++i)
-    free(sp_labels[i]);
-  free(sp_labels);
-  free(index);
-  free(sp_seqcount);
-
-  rnd_fini();
-
-  for (i = 0; i < concat->count; ++i)
-  {
-    free(concat->label[i]);
-    free(concat->sequence[i]);
-  }
-  free(concat->label);
-  free(concat->sequence);
-  free(concat);
-
-  msa_destroy(condmsa);
-
-  for (i = 0; i < 4; ++i)
-    free(taxa_list[i]);
-  free(taxa_list);
-  free(taxa);
-  free(cilabel);
-
+  /* deallocate individual MSAs */
   for (i = 0; i < msa_count; ++i)
     msa_destroy(msa_list[i]);
   free(msa_list);
 
-  free(abba_vec);
-  free(baba_vec);
+  /* map sequences to species. Returns "index" which contains one integer per sequence
+     sequence indicating its species. sp_seqcount contains the number of sequences for
+     each species */
+  long * index = NULL;
+  long sp_count = 0;
+  long * sp_seqcount = NULL;
+  char ** sp_labels;
+  sp_labels = map_sequences_to_species(concat,
+                                       maplist,
+                                       &index,
+                                       &sp_seqcount,
+                                       &sp_count);
+
+  /* now create a "condensed" MSA where all sequences inside a population
+     are represented by just one sequence. Ambiguous characters are used to
+     represent polymorphism. We also construct a vector (vec) which is filled
+     with per-site nucleodite weights (size = msa->length * 4). */
+  double * vec;
+  msa_t * condmsa = condense_msa(concat, index, sp_labels, sp_count, &vec);
+  free(index);
+  free(sp_seqcount);
+
+  #if 1
+  if (opt_debug)
+  {
+    xdebug(ANSI_COLOR_RED "2. Condensed alignment:" ANSI_COLOR_RESET);
+    phylip_print(stdout, condmsa);
+    debug_print_vec(vec,condmsa);
+  }
+  #endif
+
+  double * abba_vec = (double *)xmalloc((size_t)condmsa->length*sizeof(double));
+  double * baba_vec = (double *)xmalloc((size_t)condmsa->length*sizeof(double));
+  double * bbaa_vec = (double *)xmalloc((size_t)condmsa->length*sizeof(double));
+
+
+  fp_tree = xopen(opt_treefile, "r");
+  long lineno = 0;
+
+  /* storage space for tip nodes within the a and b clades */
+  rnode_t ** a_tips = NULL;
+  rnode_t ** b_tips = NULL;
+  long ab_size = 0;
+
+  /* go through all trees in tree file */
+  while ((newick = getnextline(fp_tree)))
+  {
+    lineno++;
+
+    /* skip empty lines or comments */
+    if (is_emptyline(newick))
+    {
+      free(newick);
+      continue;
+    }
+
+    rtree_t * rtree = bpp_parse_newick_string(newick); 
+    if (!rtree)
+      fatal("Cannot parse tree (%s:%ld)", opt_treefile, lineno);
+
+    printf("Processing tree: %s\n", newick);
+
+    /* reallocate space for A and B tips if insufficient */
+    if (ab_size < rtree->tip_count)
+    {
+      if (a_tips) free(a_tips);
+      if (b_tips) free(b_tips);
+      a_tips = (rnode_t **)xmalloc((size_t)rtree->tip_count * sizeof(rnode_t *));
+      b_tips = (rnode_t **)xmalloc((size_t)rtree->tip_count * sizeof(rnode_t *));
+      ab_size = rtree->tip_count;
+    }
+
+    if (rtree->tip_count != sp_count)
+      fatal("Mismatching number of species in MSA (%ld) and tree (%d)",sp_count,rtree->tip_count);
+
+    /* link each tip node with its sequence
+       TODO: Can be done more efficiently */
+    for (i = 0; i < rtree->tip_count; ++i)
+    {
+      for (j = 0; j < sp_count; ++j)
+      {
+        if (!strcmp(rtree->nodes[i]->label,sp_labels[j]))
+        {
+          rtree->nodes[i]->seq_index = j;
+          break;
+        }
+      }
+      assert(j < sp_count);
+    }
+
+    
+    for (i = 0; i < rtree->tip_count; ++i)
+    {
+      if (!strcmp(opt_outgroup, rtree->nodes[i]->label))
+        break;
+    }
+    if (i == rtree->tip_count)
+      fatal("Outgroup not found...");
+
+    rnode_t * O = rtree->nodes[i];
+
+    assert(O->parent);
+    if (O->parent->parent)
+      fatal("Outgroup must be a tip and direct descendent of root");
+
+
+    double ** matrix;
+    /* get clades */
+    rnode_t * b;
+    rnode_t * a;
+    rnode_t * C;
+    long total_nodes = rtree->tip_count+rtree->inner_count;
+    matrix = (double **)xmalloc((size_t)total_nodes*sizeof(double *));
+    for (i = 0; i < total_nodes; ++i)
+    {
+      matrix[i] = (double *)xmalloc((size_t)rtree->tip_count*sizeof(double));
+      for (j = 0; j < rtree->tip_count; ++j)
+        matrix[i][j] = -1;
+    }
+
+    double mgamma = 0;
+    for (i = 0; i < rtree->tip_count+rtree->inner_count; ++i)
+    {
+      b = rtree->nodes[i];
+
+      if (!b->parent) continue;
+      if (b->parent && !b->parent->parent) continue;
+
+      /* branch b is parental to node b */
+
+      /* branch a is b's sibling */
+      a = (b->parent->left == b) ? b->parent->right : b->parent->left;
+
+      for (j = 0; j < rtree->tip_count; ++j)
+      {
+        /* skip outgroup */
+        if (rtree->nodes[j] == O) continue;
+
+        C = rtree->nodes[j];
+
+        if (within_clade(C,a)) continue;
+        if (within_clade(C,b)) continue;
+
+        long a_tip_count = 0;
+        long b_tip_count = 0;
+        fill_tips(a,a_tips,&a_tip_count);
+        fill_tips(b,b_tips,&b_tip_count);
+
+
+        /* generate triplet */
+        if (opt_debug)
+        {
+          char * astr = rtree_export_newick(a,NULL);
+          char * bstr = rtree_export_newick(b,NULL);
+          xdebug("Working on tree: ((%s,%s),%s);", astr,bstr,C->label);
+          free(astr);
+          free(bstr);
+        }
+
+
+        long  min_b_index = min_b(condmsa,
+                                  a_tips,
+                                  a_tip_count,
+                                  b_tips,
+                                  b_tip_count,
+                                  C,
+                                  O,
+                                  vec,
+                                  abba_vec,
+                                  baba_vec,
+                                  bbaa_vec);
+       
+        mgamma = median_A(condmsa,
+                          a_tips,
+                          a_tip_count,
+                          b_tips[min_b_index],
+                          C,
+                          O,
+                          vec,
+                          abba_vec,
+                          baba_vec,
+                          bbaa_vec);
+        matrix[i][j] = mgamma;
+      
+      }
+    }
+
+    printf("Matrix for tree on line %ld:\n", lineno);
+    print_matrix(matrix,total_nodes,rtree->tip_count,O,rtree);
+    for (i = 0; i < total_nodes; ++i)
+      free(matrix[i]);
+    free(matrix);
+
+
+    char * pdf_filename;
+    xasprintf(&pdf_filename, "tree.%ld.pdf", lineno);
+    set_height(rtree->root);
+    set_tau_uniformly(rtree);
+
+    rtree_export_pdf(rtree, pdf_filename);
+    free(pdf_filename);
+    #if 0
+    char * treestr = rtree_export_newick(rtree->root,NULL);
+    printf("Newick: %s\n", treestr);
+    free(treestr);
+    #endif
+    rtree_destroy(rtree,NULL);
+
+    free(newick);
+  }
+  for (i = 0; i < sp_count; ++i)
+    free(sp_labels[i]);
+  free(sp_labels);
+  if (a_tips) free(a_tips);
+  if (b_tips) free(b_tips);
 
   list_clear(maplist, map_dealloc);
   free(maplist);
+
+  fclose(fp_tree);
+  msa_destroy(concat);
+  msa_destroy(condmsa);
   free(vec);
+  free(abba_vec);
+  free(baba_vec);
+  free(bbaa_vec);
 }

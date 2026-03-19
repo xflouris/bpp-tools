@@ -213,16 +213,21 @@ void cpu_setarch()
     opt_arch = PLL_ATTRIB_ARCH_AVX2;
 #endif
 
-  if (opt_arch == PLL_ATTRIB_ARCH_CPU)
-    printf("Auto-selected SIMD ISA: CPU\n\n");
-  else if (opt_arch == PLL_ATTRIB_ARCH_SSE)
-    printf("Auto-selected SIMD ISA: SSE\n\n");
-  else if (opt_arch == PLL_ATTRIB_ARCH_AVX)
-    printf("Auto-selected SIMD ISA: AVX\n\n");
-  else if (opt_arch == PLL_ATTRIB_ARCH_AVX2)
-    printf("Auto-selected SIMD ISA: AVX2\n\n");
-  else
-    fatal("Internal error when setting arch");
+  
+  if (!opt_quiet)
+  {
+    if (opt_arch == PLL_ATTRIB_ARCH_CPU)
+      printf("Auto-selected SIMD ISA: CPU\n\n");
+    else if (opt_arch == PLL_ATTRIB_ARCH_SSE)
+      printf("Auto-selected SIMD ISA: SSE\n\n");
+    else if (opt_arch == PLL_ATTRIB_ARCH_AVX)
+      printf("Auto-selected SIMD ISA: AVX\n\n");
+    else if (opt_arch == PLL_ATTRIB_ARCH_AVX2)
+      printf("Auto-selected SIMD ISA: AVX2\n\n");
+    else
+      fatal("Internal error when setting arch");
+  }
+
 }
 
 #ifdef _MSC_VER

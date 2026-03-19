@@ -89,6 +89,8 @@
 #define VERSION_MINOR 1
 #define VERSION_PATCH 0
 
+#define PVER_SHA1 "56d9c40ada7dfe21d67124862bc4758cba9c1365"
+
 #define PROG_VERSION "v" PLL_C2S(VERSION_MAJOR) "." PLL_C2S(VERSION_MINOR) "." \
         PLL_C2S(VERSION_PATCH)
 
@@ -132,6 +134,9 @@
 #define LINEALLOC 2048
 #define ASCII_SIZE 256
 
+#define TREE_TRAVERSE_POSTORDER         1
+#define TREE_TRAVERSE_PREORDER          2
+
 #define BPP_DATA_DNA                    0
 #define BPP_DATA_AA                     1
 
@@ -160,6 +165,20 @@
 #define PLL_ATTRIB_ARCH_AVX2      (1 << 2)
 #define PLL_ATTRIB_ARCH_AVX512    (1 << 3)
 #define PLL_ATTRIB_ARCH_MASK         0xF
+
+/* ANSI color codes */
+
+#define ANSI_COLOR_RED     "\x1b[31m"
+#define ANSI_COLOR_GREEN   "\x1b[32m"
+#define ANSI_COLOR_YELLOW  "\x1b[33m"
+#define ANSI_COLOR_BLUE    "\x1b[34m"
+#define ANSI_COLOR_MAGENTA "\x1b[35m"
+#define ANSI_COLOR_CYAN    "\x1b[36m"
+#define ANSI_COLOR_RESET   "\x1b[0m"
+
+#define BPP_FAIL   "[" ANSI_COLOR_RED "FAIL" ANSI_COLOR_RESET "]"
+#define BPP_WARN   "[" ANSI_COLOR_YELLOW "WARN" ANSI_COLOR_RESET "]"
+#define BPP_DEBUG  "[" ANSI_COLOR_CYAN "DEBUG" ANSI_COLOR_RESET "]"
 
 /* structures and data types */
 
@@ -201,6 +220,13 @@ typedef struct phylip_s
   long stripped[256];
 } phylip_t;
 
+typedef struct mapping_s
+{
+  char * individual;
+  char * species;
+  int lineno;
+} mapping_t;
+
 typedef struct list_item_s
 {
   void * data;
@@ -233,6 +259,88 @@ typedef struct pair_s
   char * label;
   void * data;
 } pair_t;
+
+typedef struct coord_s
+{
+  double x;
+  double y;
+} coord_t;
+
+typedef struct node_s
+{
+  char * label;
+  char * attr;
+  double length;
+  struct node_s ** children;
+  struct node_s * parent;
+  int children_count;
+  int mark;
+  int leaves;
+  long node_index;
+  coord_t * coord;
+  void * data;
+  double tau;
+  double theta;
+
+} node_t;
+
+typedef struct ntree_s
+{
+  int tip_count;
+  int inner_count;
+  node_t * root;
+  node_t ** leaves;
+  node_t ** inner;
+} ntree_t;
+
+typedef struct rnode_s
+{
+  char * label;
+  char * attrib;
+  double length;
+  double tau;
+  double theta;
+  struct rnode_s * left;
+  struct rnode_s * right;
+  struct rnode_s * parent;
+  unsigned int leaves;
+  long node_index;
+  long height;
+
+  void * data;
+
+  long seq_index;
+} rnode_t;
+
+/* used for creating FigTree.tre */
+typedef struct nodepinfo_s 
+{
+  /* 95% HPD CI */
+  double lo;
+  double hi;
+
+  /* mean age */
+  double age;
+
+} nodepinfo_t; 
+
+typedef struct rtree_s
+{
+  unsigned int tip_count;
+  unsigned int inner_count;
+  unsigned int edge_count;
+
+  rnode_t ** nodes;
+  rnode_t ** td;
+
+
+  rnode_t * root;
+
+  double root_age;
+
+  void * data;
+
+} rtree_t;
 
 /* macros */
 
@@ -270,18 +378,39 @@ typedef struct pair_s
 
 /* options */
 
+extern char opt_nachar_default;
+extern long opt_ansi;
 extern long opt_arch;
+extern long opt_bscount;
+extern long opt_concat;
+extern long opt_debug;
+extern long opt_debug_parser;
+extern long opt_dstat_all;
 extern long opt_explode;
+extern long opt_extract;
+extern long opt_fbranch;
 extern long opt_help;
+extern long opt_info;
+extern long opt_jackknife;
 extern long opt_quiet;
 extern long opt_seed;
+extern long opt_threads;
+extern long opt_verbose;
 extern long opt_version;
+extern double opt_ci_alpha;
 extern char * cmdline;
 extern char * opt_msafile;
 extern char * opt_outfile;
 extern char * opt_dstat;
-extern char * opt_extract;
+extern char * opt_hyde;
+extern char * opt_mapfile;
+extern char * opt_nachar;
 extern char * opt_remove;
+extern char * opt_label_list;
+extern char * opt_species_list;
+extern char * opt_tag_list;
+extern char * opt_treefile;
+extern char * opt_outgroup;
 
 /* common data */
 
@@ -335,6 +464,9 @@ int xasprintf(char ** strp, const char * fmt, ...);
 #else
 void fatal(const char * format, ...) __attribute__ ((noreturn));
 #endif
+void xwarn(const char * format, ...);
+void xdebug(const char * format, ...);
+void xdebug_noendl(const char * format, ...);
 void progress_init(const char * prompt, unsigned long size);
 void progress_update(unsigned long progress);
 void progress_done(void);
@@ -427,6 +559,10 @@ int cb_cmp_pairlabel(void * a, void * b);
 
 /* functions in list.c */
 
+/* functions in concat.c */
+msa_t * concatenate(msa_t ** msa_list, long msa_count);
+void cmd_concat();
+
 void list_append(list_t * list, void * data);
 
 void list_prepend(list_t * list, void * data);
@@ -439,5 +575,55 @@ long list_delitem(list_t * list, list_item_t * item, void (*cb_dealloc)(void *))
 /* functions in extract.c */
 void cmd_extract();
 
+/* functions in info.c */
+void cmd_info();
+
+/* functions in mapping.c */
+void maplist_print(list_t * maplist);
+void map_dealloc(void * data);
+
+/* functions in parsemap.c */
+list_t * parse_mapfile(const char * mapfile);
+
+/* functions in random.c */
+void rnd_init();
+void rnd_fini();
+double rndu(long index);
+
 /* functions in remove.c */
 void cmd_remove();
+
+/* functions in hyde.c */
+
+void cmd_hyde(void);
+
+/* functions in fbranch.c */
+
+void cmd_fbranch(void);
+
+/* functions in treeparse.c */
+
+rtree_t * bpp_parse_newick_string(const char * line);
+ntree_t * bpp_parse_newick_string_ntree(const char * line);
+void rtree_destroy(rtree_t * tree, void (*cb_destroy)(void *));
+
+/* functions in parse.c */
+
+char * getnextline(FILE * fd);
+
+/* functions in rtree.c */
+
+char * rtree_export_newick(const rnode_t * root,
+                           char * (*cb_serialize)(const rnode_t *));
+rtree_t * rtree_clone(rtree_t * rtree);
+
+rtree_t * rtree_wraptree(rnode_t * root);
+
+int rtree_traverse(rnode_t * root,
+                   int traversal,
+                   int (*cbtrav)(rnode_t *),
+                   rnode_t ** outbuffer,
+                   unsigned int * trav_size);
+
+/* funtions in visual.c */
+void rtree_export_pdf(const rtree_t * rtree, const char * outfile);

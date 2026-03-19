@@ -34,17 +34,38 @@ __THREAD int bpp_errno;
 __THREAD char bpp_errmsg[200] = {0};
 
 /* options */
+char opt_nachar_default;
+long opt_ansi;
 long opt_arch;
+long opt_bscount;
+long opt_concat;
+long opt_debug;
+long opt_debug_parser;
+long opt_dstat_all;
 long opt_explode;
+long opt_extract;
+long opt_fbranch;
 long opt_help;
+long opt_info;
+long opt_jackknife;
 long opt_quiet;
 long opt_seed;
+long opt_threads;
+long opt_verbose;
 long opt_version;
-char * opt_msafile;
-char * opt_outfile;
+double opt_ci_alpha;
 char * opt_dstat;
-char * opt_extract;
+char * opt_hyde;
+char * opt_mapfile;
+char * opt_msafile;
+char * opt_nachar;
+char * opt_outfile;
 char * opt_remove;
+char * opt_label_list;
+char * opt_species_list;
+char * opt_tag_list;
+char * opt_treefile;
+char * opt_outgroup;
 
 long mmx_present;
 long sse_present;
@@ -67,10 +88,40 @@ static struct option long_options[] =
   {"dstat",        required_argument, 0, 0 },  /*  4 */
   {"out",          required_argument, 0, 0 },  /*  5 */
   {"explode",      no_argument,       0, 0 },  /*  6 */
-  {"extract",      required_argument, 0, 0 },  /*  7 */
+  {"extract",      no_argument,       0, 0 },  /*  7 */
   {"remove",       required_argument, 0, 0 },  /*  8 */
+  {"concat",       no_argument,       0, 0 },  /*  9 */
+  {"seed",         required_argument, 0, 0 },  /* 10 */
+  {"map",          required_argument, 0, 0 },  /* 11 */
+  {"nachar",       required_argument, 0, 0 },  /* 12 */
+  {"tag_list",     required_argument, 0, 0 },  /* 13 */
+  {"label_list",   required_argument, 0, 0 },  /* 14 */
+  {"species_list", required_argument, 0, 0 },  /* 15 */
+  {"verbose",      optional_argument, 0, 0 },  /* 16 */
+  {"all",          no_argument,       0, 0 },  /* 17 */
+  {"debug",        optional_argument, 0, 0 },  /* 18 */
+  {"info",         no_argument,       0, 0 },  /* 19 */
+  {"bscount",      required_argument, 0, 0 },  /* 20 */
+  {"alpha",        required_argument, 0, 0 },  /* 21 */
+  {"hyde",         required_argument, 0, 0 },  /* 22 */
+  {"jackknife",    required_argument, 0, 0 },  /* 23 */
+  {"fbranch",      no_argument,       0, 0 },  /* 24 */
+  {"treefile",     required_argument, 0, 0 },  /* 25 */
+  {"outgroup",     required_argument, 0, 0 },  /* 26 */
   { 0, 0, 0, 0 }
 };
+
+double args_getdouble(char * arg)
+{
+  int len = 0;
+  double temp = 0;
+  int ret = sscanf(arg, "%lf%n", &temp, &len);
+  if ((ret == 0) || (((unsigned int)(len)) < strlen(arg)))
+    fatal("Illegal option argument");
+  return temp;
+}
+
+
 
 void args_init(int argc, char ** argv)
 {
@@ -81,15 +132,32 @@ void args_init(int argc, char ** argv)
 
   progname = argv[0];
 
+  opt_ansi = 1;
   opt_arch = -1;
+  opt_bscount = 1000;
+  opt_ci_alpha = 0.05;
+  opt_debug = 0;
+  opt_debug_parser = 0;
   opt_dstat = NULL;
+  opt_dstat_all = 0;
   opt_explode = 0;
+  opt_fbranch = 0;
+  opt_nachar_default = '-';
   opt_help = 0;
+  opt_info = 0;
+  opt_jackknife = 0;
+  opt_mapfile = NULL;
   opt_msafile = NULL;
+  opt_nachar = NULL;
   opt_outfile = NULL;
+  opt_treefile = NULL;
+  opt_outgroup = NULL;
   opt_quiet = 0;
   opt_seed = -1;
+  opt_threads = 1;
+  opt_verbose = 0;
   opt_version = 0;
+  opt_concat = 0;
 
 
   while ((c = getopt_long_only(argc, argv, "", long_options, &option_index)) == 0)
@@ -125,13 +193,88 @@ void args_init(int argc, char ** argv)
         break;
 
       case 7:
-        opt_extract = xstrdup(optarg);
+        opt_extract = 1;
         break;
 
       case 8:
         opt_remove = xstrdup(optarg);
         break;
 
+      case 9:
+        opt_concat = 1;
+        break;
+
+      case 10:
+        opt_seed = atol(optarg);
+        break;
+
+      case 11:
+        opt_mapfile = xstrdup(optarg);
+        break;
+
+      case 12:
+        opt_nachar = xstrdup(optarg);
+        break;
+
+      case 13:
+        opt_tag_list = xstrdup(optarg);
+        break;
+
+      case 14:
+        opt_label_list = xstrdup(optarg);
+        break;
+
+      case 15:
+        opt_species_list = xstrdup(optarg);
+        break;
+
+      case 16:
+        opt_verbose = 1;
+        if (optarg)
+          opt_verbose = atol(optarg);
+        break;
+
+      case 17:
+        opt_dstat_all = 1;
+        break;
+        
+      case 18:
+        opt_debug = 1;
+        if (optarg)
+          opt_debug = atol(optarg);
+        break;
+
+      case 19:
+        opt_info = 1;
+        break;
+
+      case 20:
+        opt_bscount = atol(optarg);
+        break;
+
+      case 21:
+        opt_ci_alpha = args_getdouble(optarg);
+        break;
+
+      case 22:
+        opt_hyde = xstrdup(optarg);
+        break;
+
+      case 23:
+        opt_jackknife = 1;
+        break;
+
+      case 24:
+        opt_fbranch = 1;
+        break;
+
+      case 25:
+        opt_treefile = xstrdup(optarg);
+        break;
+
+      case 26:
+        opt_outgroup = xstrdup(optarg);
+        break;
 
       default:
         fatal("Internal error in option parsing");
@@ -150,11 +293,19 @@ void args_init(int argc, char ** argv)
     commands++;
   if (opt_dstat)
     commands++;
+  if (opt_hyde)
+    commands++;
   if (opt_explode)
     commands++;
   if (opt_extract)
     commands++;
   if (opt_remove)
+    commands++;
+  if (opt_concat)
+    commands++;
+  if (opt_info)
+    commands++;
+  if (opt_fbranch)
     commands++;
 
   /* if more than one independent command, fail */
@@ -175,9 +326,16 @@ static void dealloc_switches()
 {
   if (opt_dstat) free(opt_dstat);
   if (opt_msafile) free(opt_msafile);
+  if (opt_mapfile) free(opt_mapfile);
   if (opt_outfile) free(opt_outfile);
-  if (opt_extract) free(opt_extract);
+  if (opt_tag_list) free(opt_tag_list);
+  if (opt_label_list) free(opt_label_list);
+  if (opt_species_list) free(opt_species_list);
   if (opt_remove) free(opt_remove);
+  if (opt_nachar) free(opt_nachar);
+  if (opt_hyde) free(opt_hyde);
+  if (opt_treefile) free(opt_treefile);
+  if (opt_outgroup) free(opt_outgroup);
 }
 
 void cmd_none()
@@ -191,9 +349,10 @@ void cmd_none()
             "Example commands:\n"
             "\n"
             "bpp-tools --explode --msa FILENAME --output FILENAME\n"
-            "bpp-tools --extract CSV --msa FILENAME --output FILENAME\n"
+            "bpp-tools --extract --msa FILENAME --label_list --output FILENAME\n"
             "bpp-tools --remove CSV --msa FILENAME --output FILENAME\n"
             "bpp-tools --subsample CSV --msa FILENAME --output FILENAME\n"
+            "bpp-tools --concat --msa FILENAME --nachar CHAR --output FILENAME\n"
             "bpp-tools --dstat CSV --msa FILENAME\n"
             "\n",
             progname);
@@ -206,14 +365,36 @@ void cmd_help()
 
   fprintf(stderr,
           "Usage: %s [OPTIONS]\n", progname);
+
   fprintf(stderr,
           "\n"
           "General options:\n"
           "  --help             display help information\n"
           "  --version          display version information\n"
-          "  --quiet            only output warnings and fatal errors to stderr\n"
+          "  --quiet            only print warnings and fatal errors (stderr)\n"
           "  --dstat taxa       run dstatistics\n"
           "\n"
+          "Split multi-locus PHYLIP file to individual alignments\n"
+          "  --explode\n"
+          " Parameters\n"
+          "  --msa FILENAME     multi-locus PHYLIP file to be split\n"
+          "  --out FILENAME     template name for output files\n"
+          "\n"
+          "Concatenate multilocus PHYLIP alignments\n"
+          "  --concat           concatenate and create partition information\n"
+          " Parameters\n"
+          "  --msa FILENAME     multi-locus PHYLIP file to concatenate\n"
+          "  --nachar CHAR      character to be used for missing data\n"
+          "  --out FILENAME     output file to store concatenated alignment\n"
+          "\n"
+          "Extract sequences from multilocus PHYLIP alignments\n"
+          "  --extract          extract sequences and place into a new file\n"
+          " Parameters\n"
+          "  --msa FILENAME     multi-locus PHYLIP file from which to extract\n"
+          "  --label_list CSV   comma-separated sequence labels to match\n"
+          "  --tag_list CSV     comma-separated sequence tags to match\n"
+          "  --species_list CSV comma-separated species to match\n"
+          "  --mapfile FILENAME map file (required for --species_list)\n"
          );
 
   /*         0         1         2         3         4         5         6         7          */
@@ -261,10 +442,12 @@ int main (int argc, char * argv[])
 
   args_init(argc, argv);
 
-  show_header();
+  if (!opt_quiet)
+    show_header();
 
   cpu_features_detect();
-  cpu_features_show();
+  if (!opt_quiet)
+    cpu_features_show();
   if (!opt_version && !opt_help)
     cpu_setarch();
 
@@ -280,6 +463,14 @@ int main (int argc, char * argv[])
   {
     cmd_dstat();
   }
+  else if (opt_hyde)
+  {
+    cmd_hyde();
+  }
+  else if (opt_fbranch)
+  {
+    cmd_fbranch();
+  }
   else if (opt_explode)
   {
     cmd_explode();
@@ -291,6 +482,14 @@ int main (int argc, char * argv[])
   else if (opt_remove)
   {
     cmd_remove();
+  }
+  else if (opt_concat)
+  {
+    cmd_concat();
+  }
+  else if (opt_info)
+  {
+    cmd_info();
   }
   else
     cmd_none();

@@ -305,6 +305,102 @@ int msa_remove_missing_sequences(msa_t * msa)
   return deleted;
 }
 
+msa_t * msa_create_copy(msa_t * msa,
+                        int * bCopy,
+                        int bDelMiss,
+                        unsigned int misscode,
+                        const unsigned int * map)
+{
+  long i,j,k,m;
+  long new_count = 0;
+  long new_len = 0;
+  long * delsite = NULL;
+  msa_t * new = NULL;
+
+  if (!msa) return NULL;
+
+  /* get number of sequences to be copied */
+  if (bCopy)
+  {
+    for (i = 0; i < msa->count; ++i)
+    {
+      assert(bCopy[i] == 0 || bCopy[i] == 1);
+      new_count += bCopy[i];
+    }
+  }
+  else
+  {
+    new_count = msa->count;
+  }
+
+  if (!new_count) return NULL;
+
+  /* now get the number of sites */
+  new_len = msa->length;
+  delsite = (long *)xcalloc((size_t)msa->length, sizeof(long));
+
+  /* mark sites that contain missing data */
+  if (bDelMiss)
+  {
+    for (i = 0; i < msa->length; ++i)
+    {
+      for (j = 0; j < msa->count; ++j)
+      {
+        if (map[(int)msa->sequence[j][i]] == misscode)
+        {
+          --new_len;
+          delsite[i] = 1;
+        }
+      }
+    }
+    if (!new_len)
+    {
+      free(delsite);
+      return NULL;
+    }
+  }
+
+  /* allocate space for new alignment */
+  new = (msa_t *)xcalloc(1,sizeof(msa_t));
+  new->count = new_count;
+  new->length = new_len;
+  new->sequence = (char **)xmalloc((size_t)new_count * sizeof(char *));
+  new->label    = (char **)xmalloc((size_t)new_count * sizeof(char *));
+  for (i = 0, k = 0; i < msa->count; ++i)
+  {
+    if (bCopy && !bCopy[i]) continue;
+
+    new->sequence[k] = (char *)xmalloc((size_t)new_len * sizeof(char));
+    new->label[k] = xstrdup(msa->label[i]);
+    ++k;
+  }
+
+  /* copy alignment */
+  for (i = 0, k = 0; i < msa->length; ++i)
+  {
+    if (delsite[i]) continue;
+
+    for (j = 0, m = 0; j < msa->count; ++j)
+    {
+      if (bCopy && !bCopy[j]) continue;
+
+      new->sequence[m][k] = msa->sequence[j][i];
+
+      ++m;
+    }
+
+    ++k;
+  }
+
+  /* TODO: Count ambiguous characters, frequencies */
+    
+
+  free(new);
+  free(delsite);
+
+  return new;
+}
+
 void msa_destroy(msa_t * msa)
 {
   int i;

@@ -31,6 +31,9 @@ void cmd_explode()
   FILE * fp_out;
   msa_t ** msa_list;
 
+  if (!opt_msafile)
+    fatal("Please specify a multi-locus PHYLIP file using --msa");
+
   /* open phylip file */
   fp_in = phylip_open(opt_msafile, pll_map_fasta);
   if (!fp_in)
@@ -45,7 +48,7 @@ void cmd_explode()
   outfile = opt_outfile ? xstrdup(opt_outfile) : xstrdup(opt_msafile);
   for (i = 0; i < msa_count; ++i)
   {
-    xasprintf(&filename, "%s.%ld", outfile, i);
+    xasprintf(&filename, "%s.%ld", outfile, i+1);
     fp_out = xopen(filename, "w");
     phylip_print(fp_out, msa_list[i]);
 
@@ -53,6 +56,9 @@ void cmd_explode()
     free(filename);
     fclose(fp_out);
   }
+
+  printf("%ld alignments found in %s\n", msa_count, opt_msafile);
+  printf("Individual alignments stored in %s.[1-%ld]\n", outfile, msa_count);
 
   free(outfile);
   free(msa_list);

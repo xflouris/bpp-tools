@@ -95,14 +95,34 @@ msa_t * concatenate(msa_t ** msa_list, long msa_count)
   msa_t * concat;
   char ** labels;
 
-  /* reject multi-locus compressed input; concatenating weight vectors across
-     loci is ill-defined (the patterns live in different alignments) */
-  if (msa_count > 1)
+  /* Pattern-compression consistency check across loci. We allow:
+      - all loci uncompressed (the classic path)
+      - all loci compressed with the same compress_model (multi-locus
+        compressed concatenation; patterns from each locus keep their own
+        weights and are laid end-to-end in the concatenated MSA)
+     We reject:
+      - a mix of compressed and uncompressed (the semantics of the missing-
+        data fill would not be well defined on the compressed side)
+      - a mix of JC69 and GTR (the two re-encodings are incompatible) */
+  int any_compressed = 0, all_compressed = 1;
+  int shared_model = -1;
+  for (i = 0; i < msa_count; ++i)
   {
-    for (i = 0; i < msa_count; ++i)
-      if (msa_list[i]->pattern_weights)
-        fatal("Cannot concatenate multiple pattern-compressed alignments");
+    if (msa_list[i]->pattern_weights)
+    {
+      any_compressed = 1;
+      if (shared_model == -1)
+        shared_model = msa_list[i]->compress_model;
+      else if (shared_model != msa_list[i]->compress_model)
+        fatal("Cannot concatenate alignments with mixed compression models "
+              "(JC69 + GTR)");
+    }
+    else
+      all_compressed = 0;
   }
+  if (any_compressed && !all_compressed)
+    fatal("Cannot concatenate a mix of compressed and uncompressed "
+          "alignments");
 
   /* single pattern-compressed locus: no concatenation needed; return a fresh
      deep copy that preserves sequences, labels, pattern_weights and
@@ -204,6 +224,24 @@ msa_t * concatenate(msa_t ** msa_list, long msa_count)
   assert(offset == concat_seq_size);
   for (j = 0; j < concat_seq_count; ++j)
     concat->sequence[j][offset] = 0;
+
+  /* multi-locus compressed: concatenate the per-locus weight vectors in the
+     same order as the sequences were laid out */
+  if (shared_model != -1)
+  {
+    long woff = 0;
+    concat->compress_model = shared_model;
+    concat->pattern_weights =
+      (unsigned int *)xmalloc((size_t)concat_seq_size * sizeof(unsigned int));
+    for (i = 0; i < msa_count; ++i)
+    {
+      memcpy(concat->pattern_weights + woff,
+             msa_list[i]->pattern_weights,
+             (size_t)msa_list[i]->length * sizeof(unsigned int));
+      woff += msa_list[i]->length;
+    }
+    assert(woff == concat_seq_size);
+  }
 
   return concat;
 }

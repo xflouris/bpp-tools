@@ -254,9 +254,14 @@ unsigned int * compress_site_patterns(char ** sequence,
       charmap[i] = (unsigned char)(map[i]);
   }
 
-  /* create inverse charmap to decode states back to characters when
-     compression is finished */
-  for (i = 0; i < ASCII_SIZE; ++i)
+  /* Create inverse charmap to decode states back to characters when
+     compression is finished. Several input characters typically share a
+     state code (e.g. pll_map_nt maps both 'T' and 'U' — and 't' and 'u' —
+     to state 8). We iterate in reverse so the lowest-ASCII character
+     (i.e. the canonical uppercase DNA base: 'A','C','G','T') wins, avoiding
+     surprising side effects such as the compressor emitting 'U' or 'u'
+     which some downstream tables treat as invalid. */
+  for (i = ASCII_SIZE - 1; i >= 0; --i)
     if (map[i])
       inv_charmap[charmap[i]] = (unsigned char)i;
 

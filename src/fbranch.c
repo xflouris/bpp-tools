@@ -737,7 +737,8 @@ static int cb_cmp_double_asc(const void * a, const void * b)
 static double median_A(msa_t * condmsa,
                        rnode_t ** a_tips,
                        long a_tip_count,
-                       rnode_t * B,
+                       rnode_t ** b_tips,
+                       long b_tip_count,
                        rnode_t * C,
                        rnode_t * O,
                        double * vec,
@@ -745,7 +746,7 @@ static double median_A(msa_t * condmsa,
                        double *baba_vec,
                        double *bbaa_vec)
 {
-  long i,k;
+  long i,j,k;
   double mgamma;
   double abba = 0;
   double baba = 0;
@@ -753,113 +754,28 @@ static double median_A(msa_t * condmsa,
   char * taxa[4];
   double * vgamma;
 
-  /* vector for storing gammas */
+  /* vector for storing per-A minimum gammas */
   vgamma = (double *)xcalloc((size_t)a_tip_count,sizeof(double));
 
   /* go through each A population */
   for (i = 0; i < a_tip_count; ++i)
   {
     rnode_t * A = a_tips[i];
+    double min_gamma = 0;
+    int first = 1;
 
-    /* build quartet */
-    taxa[0] = A->label;
-    taxa[1] = B->label;
-    taxa[2] = C->label;
-    taxa[3] = O->label;
-
-    /* extract alignment and pattern counts for quartet */
-    double * outvec = NULL;
-    msa_t * ss = subsample_msa(condmsa,
-                               taxa,
-                               vec,
-                               abba_vec,
-                               baba_vec,
-                               bbaa_vec,
-                               &outvec,
-                               4);
-
-    if (opt_debug)
+    /* find minimum gamma over all B tips for this A */
+    for (j = 0; j < b_tip_count; ++j)
     {
-      xdebug("Finding median_A...");
-      xdebug("Triplet: (((%s,%s),%s),%s)",
-             taxa[0],taxa[1],taxa[2],taxa[3]);
-      xdebug("Alignment:");
-      phylip_print(stdout, ss);
-    }
+      rnode_t * B = b_tips[j];
 
-    /* compute pattern counts */
-    abba = baba = bbaa = 0;
-    for (k = 0; k < ss->length; ++k)
-    {
-      abba += abba_vec[k];
-      baba += baba_vec[k];
-      bbaa += bbaa_vec[k];
-    }
-
-    /* claculate gamma */
-    vgamma[i] = (bbaa <= baba || abba <= baba) ?
-                  0 : (bbaa - baba)/(bbaa - 2*baba + abba);
-
-    /* dealloc */
-    msa_destroy(ss);
-    free(outvec);
-  }
-
-  /* sort gammas in ascending order */
-  if (a_tip_count>1)
-    qsort(vgamma, a_tip_count,sizeof(double),cb_cmp_double_asc);
-
-  assert(a_tip_count);
-
-  /* get gamma median value */
-  mgamma = (a_tip_count % 2) ? 
-    vgamma[a_tip_count/2] : (vgamma[a_tip_count/2-1]+vgamma[a_tip_count/2])/2;
-
-
-  if (opt_debug)
-  {
-    printf("    vgamma: [ %f", vgamma[0]);
-    for (i = 1; i < a_tip_count; ++i)
-      printf(",%f",vgamma[i]);
-    printf("] gamma: %f\n", mgamma);
-  }
-
-  free(vgamma);
-  return mgamma;
-}
-
-static long min_b(msa_t * condmsa,
-                  rnode_t ** a_tips,
-                  long a_tip_count,
-                  rnode_t ** b_tips,
-                  long b_tip_count,
-                  rnode_t * C,
-                  rnode_t * O,
-                  double * vec,
-                  double *abba_vec,
-                  double *baba_vec,
-                  double *bbaa_vec)
-{
-  long i,j,k;
-  long minB_index = 0;
-  rnode_t * A = NULL;
-  rnode_t * B;
-  char * taxa[4];
-  double mingamma = 0;
-
-  for (i = 0; i < b_tip_count; ++i)
-  {
-    B = b_tips[i];
-    for (j = 0; j < a_tip_count; ++j)
-    {
-      A = a_tips[j];
-
-      /* calculate score */
+      /* build quartet */
       taxa[0] = A->label;
       taxa[1] = B->label;
       taxa[2] = C->label;
       taxa[3] = O->label;
 
+      /* extract alignment and pattern counts for quartet */
       double * outvec = NULL;
       msa_t * ss = subsample_msa(condmsa,
                                  taxa,
@@ -872,48 +788,58 @@ static long min_b(msa_t * condmsa,
 
       if (opt_debug)
       {
-        xdebug("Finding min_B...");
-        xdebug("Triplet: (((%s,%s),%s),%s)",
+        xdebug("Quartet: (((%s,%s),%s),%s)",
                taxa[0],taxa[1],taxa[2],taxa[3]);
-        xdebug("Alignment:");
-        phylip_print(stdout, ss);
       }
-      double abba = 0;
-      double baba = 0;
-      double bbaa = 0;
+
+      /* compute pattern counts */
+      abba = baba = bbaa = 0;
       for (k = 0; k < ss->length; ++k)
       {
         abba += abba_vec[k];
         baba += baba_vec[k];
         bbaa += bbaa_vec[k];
       }
-      double gamma = 0;
-      gamma = (bbaa-baba)/(bbaa-2*baba+abba);
-      #if 0
-      printf("  abba=%f; baba=%f; bbaa=%f", abba,baba,bbaa);
-      printf("  Gamma: %f\n", gamma);
-      #endif
-      if (i == j && i == 0)
+
+      /* calculate gamma with guard */
+      double gamma = (bbaa <= baba || abba <= baba) ?
+                       0 : (bbaa - baba)/(bbaa - 2*baba + abba);
+
+      /* track minimum over B */
+      if (first || gamma < min_gamma)
       {
-        mingamma = gamma;
-        minB_index = 0;
+        min_gamma = gamma;
+        first = 0;
       }
-      else
-      {
-        if (gamma < mingamma)
-        {
-          mingamma = gamma;
-          minB_index = i;
-        }
-      }
+
+      /* dealloc */
       msa_destroy(ss);
       free(outvec);
     }
+
+    vgamma[i] = min_gamma;
   }
-  #if 0
-  printf("  Min gamma: %f\n", mingamma);
-  #endif
-  return minB_index;
+
+  /* sort gammas in ascending order */
+  if (a_tip_count>1)
+    qsort(vgamma, a_tip_count,sizeof(double),cb_cmp_double_asc);
+
+  assert(a_tip_count);
+
+  /* get gamma median value */
+  mgamma = (a_tip_count % 2) ?
+    vgamma[a_tip_count/2] : (vgamma[a_tip_count/2-1]+vgamma[a_tip_count/2])/2;
+
+  if (opt_debug)
+  {
+    printf("    vgamma: [ %f", vgamma[0]);
+    for (i = 1; i < a_tip_count; ++i)
+      printf(",%f",vgamma[i]);
+    printf("] gamma: %f\n", mgamma);
+  }
+
+  free(vgamma);
+  return mgamma;
 }
 
 static void fill_tips(rnode_t * root, rnode_t ** outvec, long * index)
@@ -1284,22 +1210,11 @@ void cmd_fbranch()
         }
 
 
-        long  min_b_index = min_b(condmsa,
-                                  a_tips,
-                                  a_tip_count,
-                                  b_tips,
-                                  b_tip_count,
-                                  C,
-                                  O,
-                                  vec,
-                                  abba_vec,
-                                  baba_vec,
-                                  bbaa_vec);
-       
         mgamma = median_A(condmsa,
                           a_tips,
                           a_tip_count,
-                          b_tips[min_b_index],
+                          b_tips,
+                          b_tip_count,
                           C,
                           O,
                           vec,

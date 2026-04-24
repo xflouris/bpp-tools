@@ -38,6 +38,7 @@ char opt_nachar_default;
 long opt_ansi;
 long opt_arch;
 long opt_bscount;
+long opt_compress;
 long opt_concat;
 long opt_debug;
 long opt_debug_parser;
@@ -54,6 +55,7 @@ long opt_threads;
 long opt_verbose;
 long opt_version;
 double opt_ci_alpha;
+char * opt_compress_model;
 char * opt_dstat;
 char * opt_hyde;
 char * opt_mapfile;
@@ -108,6 +110,8 @@ static struct option long_options[] =
   {"fbranch",      no_argument,       0, 0 },  /* 24 */
   {"treefile",     required_argument, 0, 0 },  /* 25 */
   {"outgroup",     required_argument, 0, 0 },  /* 26 */
+  {"compress",     no_argument,       0, 0 },  /* 27 */
+  {"model",        required_argument, 0, 0 },  /* 28 */
   { 0, 0, 0, 0 }
 };
 
@@ -158,6 +162,8 @@ void args_init(int argc, char ** argv)
   opt_verbose = 0;
   opt_version = 0;
   opt_concat = 0;
+  opt_compress = 0;
+  opt_compress_model = NULL;
 
 
   while ((c = getopt_long_only(argc, argv, "", long_options, &option_index)) == 0)
@@ -276,6 +282,14 @@ void args_init(int argc, char ** argv)
         opt_outgroup = xstrdup(optarg);
         break;
 
+      case 27:
+        opt_compress = 1;
+        break;
+
+      case 28:
+        opt_compress_model = xstrdup(optarg);
+        break;
+
       default:
         fatal("Internal error in option parsing");
     }
@@ -307,6 +321,8 @@ void args_init(int argc, char ** argv)
     commands++;
   if (opt_fbranch)
     commands++;
+  if (opt_compress)
+    commands++;
 
   /* if more than one independent command, fail */
   if (commands > 1)
@@ -336,6 +352,7 @@ static void dealloc_switches()
   if (opt_hyde) free(opt_hyde);
   if (opt_treefile) free(opt_treefile);
   if (opt_outgroup) free(opt_outgroup);
+  if (opt_compress_model) free(opt_compress_model);
 }
 
 void cmd_none()
@@ -490,6 +507,10 @@ int main (int argc, char * argv[])
   else if (opt_info)
   {
     cmd_info();
+  }
+  else if (opt_compress)
+  {
+    cmd_compress();
   }
   else
     cmd_none();

@@ -375,3 +375,73 @@ unsigned int * compress_site_patterns(char ** sequence,
 
   return weight;
 }
+
+void cmd_compress(void)
+{
+  long i;
+  long msa_count;
+  int model_attr = COMPRESS_GENERAL;
+  phylip_t * fp_in;
+  FILE * fp_out = stdout;
+  msa_t ** msa_list;
+
+  if (!opt_msafile)
+    fatal("Please specify an input alignment via --msa");
+
+  /* parse --model (optional; default is GTR = COMPRESS_GENERAL) */
+  if (opt_compress_model)
+  {
+    if (!strcasecmp(opt_compress_model, "JC69"))
+      model_attr = COMPRESS_JC69;
+    else if (!strcasecmp(opt_compress_model, "GTR"))
+      model_attr = COMPRESS_GENERAL;
+    else
+      fatal("Unknown --model value '%s' (expected JC69 or GTR)",
+            opt_compress_model);
+  }
+
+  /* load */
+  fp_in = phylip_open(opt_msafile, pll_map_fasta);
+  if (!fp_in)
+    fatal("Cannot open file %s", opt_msafile);
+  msa_list = phylip_parse_multisequential(fp_in, &msa_count);
+  assert(msa_list);
+  phylip_close(fp_in);
+
+  /* refuse already-compressed input -- would double-compress and silently
+     produce wrong weights */
+  for (i = 0; i < msa_count; ++i)
+    if (msa_list[i]->pattern_weights)
+      fatal("--compress: input is already pattern-compressed "
+            "(alignment %ld)", i + 1);
+
+  /* open output */
+  if (opt_outfile)
+    fp_out = xopen(opt_outfile, "w");
+
+  /* compress each locus in place, then write it out */
+  for (i = 0; i < msa_count; ++i)
+  {
+    msa_t * m = msa_list[i];
+    int len = m->length;
+    unsigned int * w = compress_site_patterns(m->sequence, pll_map_nt,
+                                              m->count, &len,
+                                              model_attr, NULL);
+    if (!w)
+      fatal("compression failed for alignment %ld", i + 1);
+    m->pattern_weights = w;
+    m->compress_model  = model_attr;
+    m->length          = len;
+
+    phylip_print_compressed(fp_out, m);
+    if (i + 1 < msa_count)
+      fprintf(fp_out, "\n");  /* blank line between multi-sequential blocks */
+  }
+
+  /* teardown */
+  if (opt_outfile)
+    fclose(fp_out);
+  for (i = 0; i < msa_count; ++i)
+    msa_destroy(msa_list[i]);
+  free(msa_list);
+}

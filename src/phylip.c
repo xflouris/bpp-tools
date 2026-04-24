@@ -776,3 +776,28 @@ void phylip_print(FILE * fp, const msa_t * msa)
   for (i = 0; i < msa->count; ++i)
     fprintf(fp, "%s %s\n", msa->label[i], msa->sequence[i]);
 }
+
+void phylip_print_compressed(FILE * fp, const msa_t * msa)
+{
+  long i;
+  const char * model_name;
+
+  /* only meaningful for pattern-compressed MSAs; callers guarantee this */
+  assert(msa->pattern_weights && msa->compress_model != -1);
+
+  switch (msa->compress_model)
+  {
+    case COMPRESS_JC69:    model_name = "JC69"; break;
+    case COMPRESS_GENERAL: model_name = "GTR";  break;
+    default:               model_name = "GTR";  break;
+  }
+
+  fprintf(fp, "%d %d P %s\n", msa->count, msa->length, model_name);
+  for (i = 0; i < msa->count; ++i)
+    fprintf(fp, "%s %s\n", msa->label[i], msa->sequence[i]);
+
+  /* weights line: space-separated unsigned ints, one per pattern */
+  for (i = 0; i < msa->length; ++i)
+    fprintf(fp, "%s%u", (i == 0) ? "" : " ", msa->pattern_weights[i]);
+  fprintf(fp, "\n");
+}

@@ -390,6 +390,7 @@ extern char opt_nachar_default;
 extern long opt_ansi;
 extern long opt_arch;
 extern long opt_bscount;
+extern long opt_compress;
 extern long opt_concat;
 extern long opt_debug;
 extern long opt_debug_parser;
@@ -409,6 +410,7 @@ extern double opt_ci_alpha;
 extern char * cmdline;
 extern char * opt_msafile;
 extern char * opt_outfile;
+extern char * opt_compress_model;
 extern char * opt_dstat;
 extern char * opt_hyde;
 extern char * opt_mapfile;
@@ -463,6 +465,8 @@ msa_t * phylip_parse_sequential(phylip_t * fd);
 msa_t ** phylip_parse_multisequential(phylip_t * fd, long * count);
 
 void phylip_print(FILE * fp, const msa_t * msa);
+
+void phylip_print_compressed(FILE * fp, const msa_t * msa);
 
 /* functions in util.c */
 
@@ -574,6 +578,8 @@ unsigned int * compress_site_patterns(char ** sequence,
                                       int * length,
                                       int attrib,
                                       const unsigned int * input_weights);
+
+void cmd_compress(void);
 
 /* functions in concat.c */
 msa_t * concatenate(msa_t ** msa_list, long msa_count);

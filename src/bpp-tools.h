@@ -140,6 +140,11 @@
 #define BPP_DATA_DNA                    0
 #define BPP_DATA_AA                     1
 
+/* site-pattern compression attributes */
+
+#define COMPRESS_GENERAL                1
+#define COMPRESS_JC69                   2
+
 /* error codes */
 
 #define ERROR_PHYLIP_SYNTAX            106
@@ -202,6 +207,9 @@ typedef struct msa_s
   int dtype;
   int model;
   int original_index;
+
+  unsigned int * pattern_weights;  /* weights from compressed file, or NULL */
+  int compress_model;              /* COMPRESS_JC69 or COMPRESS_GENERAL, or -1 */
 
 } msa_t;
 
@@ -558,6 +566,14 @@ void hashtable_destroy(hashtable_t * ht, void (*cb_dealloc)(void *));
 int cb_cmp_pairlabel(void * a, void * b);
 
 /* functions in list.c */
+
+/* functions in compress.c */
+unsigned int * compress_site_patterns(char ** sequence,
+                                      const unsigned int * map,
+                                      int count,
+                                      int * length,
+                                      int attrib,
+                                      const unsigned int * input_weights);
 
 /* functions in concat.c */
 msa_t * concatenate(msa_t ** msa_list, long msa_count);

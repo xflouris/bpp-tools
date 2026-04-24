@@ -319,6 +319,9 @@ msa_t * msa_create_copy(msa_t * msa,
 
   if (!msa) return NULL;
 
+  if (msa->pattern_weights)
+    fatal("msa_create_copy does not support pattern-compressed alignments");
+
   /* get number of sequences to be copied */
   if (bCopy)
   {
@@ -404,6 +407,9 @@ msa_t * msa_create_copy(msa_t * msa,
 void msa_destroy(msa_t * msa)
 {
   int i;
+
+  if (msa->pattern_weights)
+    free(msa->pattern_weights);
 
   if (msa->label)
   {

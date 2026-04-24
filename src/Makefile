@@ -39,8 +39,9 @@ PROG=bpp-tools
 all: $(PROG)
 
 OBJS=bpp-tools.o util.o arch.o hash.o phylip.o maps.o msa.o dstat.o hardware.o \
-     concat.o explode.o list.o extract.o mapping.o parsemap.o random.o remove.o \
-     info.o hyde.o treeparse.o parse.o fbranch.o rtree.o pdfgen.o visual.o
+     concat.o compress.o explode.o list.o extract.o mapping.o parsemap.o \
+     random.o remove.o info.o hyde.o treeparse.o parse.o fbranch.o rtree.o \
+     pdfgen.o visual.o
 
 $(PROG): $(OBJS)
 	$(CC) $(CFLAGS) -o $@ $+ $(LIBS) $(LDFLAGS)
@@ -48,5 +49,14 @@ $(PROG): $(OBJS)
 %.o: %.c
 	$(CC) $(CFLAGS) -c -o $@ $<
 
+check: $(PROG)
+	$(MAKE) -C ../test
+
+valgrind: $(PROG)
+	$(MAKE) -C ../test valgrind
+
 clean:
 	rm -f *~ $(OBJS) gmon.out $(PROG)
+	$(MAKE) -C ../test clean
+
+.PHONY: all check valgrind clean

@@ -98,6 +98,9 @@ msa_t * concatenate(msa_t ** msa_list, long msa_count)
   /* get length of concatenated alignment, max sequence count and length */
   for (i = 0; i < msa_count; ++i)
   {
+    if (msa_list[i]->pattern_weights)
+      fatal("Cannot concatenate pattern-compressed alignments");
+
     if (msa_list[i]->count > max_seq_count)
       max_seq_count = msa_list[i]->count;
     if (msa_list[i]->length > max_seq_size)

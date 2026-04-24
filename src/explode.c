@@ -43,7 +43,13 @@ void cmd_explode()
   msa_list = phylip_parse_multisequential(fp_in, &msa_count);
   assert(msa_list);
   phylip_close(fp_in);
-  
+
+  /* writer does not emit the `P MODEL` header / weights line, so a
+     compressed input would produce malformed output files. */
+  for (i = 0; i < msa_count; ++i)
+    if (msa_list[i]->pattern_weights)
+      fatal("--explode does not yet support pattern-compressed alignments");
+
   /* write separate files */
   outfile = opt_outfile ? xstrdup(opt_outfile) : xstrdup(opt_msafile);
   for (i = 0; i < msa_count; ++i)

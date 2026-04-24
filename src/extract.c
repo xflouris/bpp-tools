@@ -232,6 +232,12 @@ void cmd_extract()
   assert(msa_list);
   phylip_close(fp_in);
 
+  /* writer does not emit the `P MODEL` header / weights line, so a
+     compressed input would produce a malformed output. Reject explicitly. */
+  for (i = 0; i < msa_count; ++i)
+    if (msa_list[i]->pattern_weights)
+      fatal("--extract does not yet support pattern-compressed alignments");
+
   /* filter out sequences */
 
   new_list = (msa_t **)xmalloc((size_t)msa_count*sizeof(msa_t *));

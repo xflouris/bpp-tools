@@ -561,6 +561,18 @@ static msa_t * condense_msa(msa_t * msa,
 
   free(sp_seqcount);
   free(sp_allele_code);
+
+  /* propagate pattern-compression metadata: condense_msa collapses rows
+     (individuals -> species), not sites, so pattern_weights carry over */
+  if (msa->pattern_weights)
+  {
+    newmsa->pattern_weights =
+      (unsigned int *)xmalloc((size_t)msa->length * sizeof(unsigned int));
+    memcpy(newmsa->pattern_weights, msa->pattern_weights,
+           (size_t)msa->length * sizeof(unsigned int));
+    newmsa->compress_model = msa->compress_model;
+  }
+
   return newmsa;
 }
 
@@ -637,6 +649,17 @@ static msa_t * subsample_msa(msa_t * msa,
     sitevec += 16;
   }
   #endif
+
+  /* propagate pattern-compression metadata (site count is unchanged) */
+  if (msa->pattern_weights)
+  {
+    newmsa->pattern_weights =
+      (unsigned int *)xmalloc((size_t)msa->length * sizeof(unsigned int));
+    memcpy(newmsa->pattern_weights, msa->pattern_weights,
+           (size_t)msa->length * sizeof(unsigned int));
+    newmsa->compress_model = msa->compress_model;
+  }
+
   return newmsa;
 }
 
@@ -784,6 +807,19 @@ void cmd_dstat()
 
   phylip_close(fd);
 
+  /* JC69 pattern-compression re-encodes alleles site-locally, which collides
+     with the specific-allele assumptions of downstream pipelines; the
+     frequency-based ABBA/BABA formula here is actually invariant under such
+     relabeling, but the argument is subtle (and ambiguity sites bypass the
+     JC69 path entirely, mixing two encodings in one buffer). Rather than
+     silently produce results whose correctness depends on an invariant that
+     future code changes might break, reject JC69 input explicitly. GTR
+     compression is fine. */
+  for (i = 0; i < msa_count; ++i)
+    if (msa_list[i]->compress_model == COMPRESS_JC69)
+      fatal("--dstat does not support JC69 pattern-compressed alignments; "
+            "use uncompressed input or GTR-compressed input");
+
   if (!opt_mapfile)
     fatal("A map file needs to be specified with the --map option....");
 
@@ -893,12 +929,26 @@ void cmd_dstat()
       xdebug("");
     }
 
+    /* weighted sum when input is pattern-compressed (weights come from
+       condmsa; ss has the same sites/patterns) */
     double fabba = 0;
     double fbaba = 0;
-    for (i = 0; i < ss->length; ++i)
+    if (condmsa->pattern_weights)
     {
-      fabba += abba_vec[i];
-      fbaba += baba_vec[i];
+      for (i = 0; i < ss->length; ++i)
+      {
+        double w = (double)condmsa->pattern_weights[i];
+        fabba += abba_vec[i] * w;
+        fbaba += baba_vec[i] * w;
+      }
+    }
+    else
+    {
+      for (i = 0; i < ss->length; ++i)
+      {
+        fabba += abba_vec[i];
+        fbaba += baba_vec[i];
+      }
     }
     double dscore = (fabba + fbaba != 0) ? (fabba - fbaba) / (fabba + fbaba) : 0;
 
@@ -944,26 +994,43 @@ void cmd_dstat()
       xdebug("");
     }
 
-    rnd_init();
-    for (i = 0; i < opt_bscount; ++i)
-    {
-      dilist[i] = resample_condensed_save(msa_list, ss, abba_vec, baba_vec, msa_count);
-    }
-
-    qsort(dilist, opt_bscount, sizeof(double), cb_cmp_double);
-
     char * ci = NULL;
-    double ci_lo = dilist[(long)(opt_bscount*(opt_ci_alpha/2))];
-    double ci_hi = dilist[(long)(opt_bscount*(1-opt_ci_alpha/2))];
-
-    double * djack = jackknife(msa_list, ss, abba_vec, baba_vec, msa_count);
-    qsort(djack, msa_count, sizeof(double), cb_cmp_double);
     char * jack_ci = NULL;
-    double jack_ci_lo = djack[0];
-    double jack_ci_hi = djack[msa_count-1];
-    xasprintf(&jack_ci, "(%.6f,%.6f)", jack_ci_lo, jack_ci_hi);
+    double ci_lo = 0, ci_hi = 0;
+    double * djack = NULL;
 
-    xasprintf(&ci, "(%.6f,%.6f)", ci_lo, ci_hi);
+    if (condmsa->pattern_weights)
+    {
+      /* Bootstrap/jackknife resample sites; on pattern-compressed input
+         they would uniformly sample patterns, giving each pattern equal
+         weight regardless of pattern_weights[i]. That is statistically
+         wrong for non-uniform weights. Emit a placeholder CI instead of
+         producing misleading numbers. */
+      ci = xstrdup("(compressed:N/A)");
+      jack_ci = xstrdup("(compressed:N/A)");
+    }
+    else
+    {
+      rnd_init();
+      for (i = 0; i < opt_bscount; ++i)
+      {
+        dilist[i] = resample_condensed_save(msa_list, ss, abba_vec,
+                                            baba_vec, msa_count);
+      }
+
+      qsort(dilist, opt_bscount, sizeof(double), cb_cmp_double);
+
+      ci_lo = dilist[(long)(opt_bscount*(opt_ci_alpha/2))];
+      ci_hi = dilist[(long)(opt_bscount*(1-opt_ci_alpha/2))];
+
+      djack = jackknife(msa_list, ss, abba_vec, baba_vec, msa_count);
+      qsort(djack, msa_count, sizeof(double), cb_cmp_double);
+      double jack_ci_lo = djack[0];
+      double jack_ci_hi = djack[msa_count-1];
+      xasprintf(&jack_ci, "(%.6f,%.6f)", jack_ci_lo, jack_ci_hi);
+
+      xasprintf(&ci, "(%.6f,%.6f)", ci_lo, ci_hi);
+    }
     if (opt_ansi && (ci_lo > 0 || ci_hi < 0))
       printf(ANSI_COLOR_RED);
 
@@ -982,7 +1049,7 @@ void cmd_dstat()
     free(outvec);
     msa_destroy(ss);
 
-    free(djack);
+    if (djack) free(djack);
   }
   free(dilist);
 
@@ -995,15 +1062,7 @@ void cmd_dstat()
 
   rnd_fini();
 
-  for (i = 0; i < concat->count; ++i)
-  {
-    free(concat->label[i]);
-    free(concat->sequence[i]);
-  }
-  free(concat->label);
-  free(concat->sequence);
-  free(concat);
-
+  msa_destroy(concat);
   msa_destroy(condmsa);
 
   for (i = 0; i < 4; ++i)

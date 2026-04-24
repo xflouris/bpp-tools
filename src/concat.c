@@ -94,13 +94,45 @@ msa_t * concatenate(msa_t ** msa_list, long msa_count)
   long concat_seq_count = 0;
   msa_t * concat;
   char ** labels;
-  
+
+  /* reject multi-locus compressed input; concatenating weight vectors across
+     loci is ill-defined (the patterns live in different alignments) */
+  if (msa_count > 1)
+  {
+    for (i = 0; i < msa_count; ++i)
+      if (msa_list[i]->pattern_weights)
+        fatal("Cannot concatenate multiple pattern-compressed alignments");
+  }
+
+  /* single pattern-compressed locus: no concatenation needed; return a fresh
+     deep copy that preserves sequences, labels, pattern_weights and
+     compress_model so the caller can safely free msa_list independently */
+  if (msa_count == 1 && msa_list[0]->pattern_weights)
+  {
+    msa_t * src = msa_list[0];
+    concat = (msa_t *)xcalloc(1, sizeof(msa_t));
+    concat->count = src->count;
+    concat->length = src->length;
+    concat->compress_model = src->compress_model;
+    concat->sequence = (char **)xmalloc((size_t)src->count * sizeof(char *));
+    concat->label = (char **)xmalloc((size_t)src->count * sizeof(char *));
+    for (i = 0; i < src->count; ++i)
+    {
+      concat->sequence[i] = (char *)xmalloc((size_t)(src->length + 1));
+      memcpy(concat->sequence[i], src->sequence[i], (size_t)src->length);
+      concat->sequence[i][src->length] = 0;
+      concat->label[i] = xstrdup(src->label[i]);
+    }
+    concat->pattern_weights =
+      (unsigned int *)xmalloc((size_t)src->length * sizeof(unsigned int));
+    memcpy(concat->pattern_weights, src->pattern_weights,
+           (size_t)src->length * sizeof(unsigned int));
+    return concat;
+  }
+
   /* get length of concatenated alignment, max sequence count and length */
   for (i = 0; i < msa_count; ++i)
   {
-    if (msa_list[i]->pattern_weights)
-      fatal("Cannot concatenate pattern-compressed alignments");
-
     if (msa_list[i]->count > max_seq_count)
       max_seq_count = msa_list[i]->count;
     if (msa_list[i]->length > max_seq_size)
@@ -203,6 +235,12 @@ void cmd_concat()
   msa_list = phylip_parse_multisequential(fp_in, &msa_count);
   assert(msa_list);
   phylip_close(fp_in);
+
+  /* writer does not emit the `P MODEL` header / weights line, so a
+     compressed input would produce a malformed output. */
+  for (i = 0; i < msa_count; ++i)
+    if (msa_list[i]->pattern_weights)
+      fatal("--concat does not yet support pattern-compressed alignments");
 
   /* open output file */
   if (opt_outfile)

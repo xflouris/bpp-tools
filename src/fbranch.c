@@ -580,6 +580,18 @@ static msa_t * condense_msa(msa_t * msa,
 
   free(sp_seqcount);
   free(sp_allele_code);
+
+  /* propagate pattern-compression metadata: condense_msa collapses rows
+     (individuals -> species), not sites, so pattern_weights carry over */
+  if (msa->pattern_weights)
+  {
+    newmsa->pattern_weights =
+      (unsigned int *)xmalloc((size_t)msa->length * sizeof(unsigned int));
+    memcpy(newmsa->pattern_weights, msa->pattern_weights,
+           (size_t)msa->length * sizeof(unsigned int));
+    newmsa->compress_model = msa->compress_model;
+  }
+
   return newmsa;
 }
 #endif
@@ -711,6 +723,17 @@ static msa_t * subsample_msa(msa_t * msa,
 
 
   #endif
+
+  /* propagate pattern-compression metadata (site count is unchanged) */
+  if (msa->pattern_weights)
+  {
+    newmsa->pattern_weights =
+      (unsigned int *)xmalloc((size_t)msa->length * sizeof(unsigned int));
+    memcpy(newmsa->pattern_weights, msa->pattern_weights,
+           (size_t)msa->length * sizeof(unsigned int));
+    newmsa->compress_model = msa->compress_model;
+  }
+
   return newmsa;
 }
 
@@ -792,13 +815,27 @@ static double median_A(msa_t * condmsa,
                taxa[0],taxa[1],taxa[2],taxa[3]);
       }
 
-      /* compute pattern counts */
+      /* compute pattern counts (weighted when input is pattern-compressed;
+         weights come from condmsa since ss has the same sites/patterns) */
       abba = baba = bbaa = 0;
-      for (k = 0; k < ss->length; ++k)
+      if (condmsa->pattern_weights)
       {
-        abba += abba_vec[k];
-        baba += baba_vec[k];
-        bbaa += bbaa_vec[k];
+        for (k = 0; k < ss->length; ++k)
+        {
+          double w = (double)condmsa->pattern_weights[k];
+          abba += abba_vec[k] * w;
+          baba += baba_vec[k] * w;
+          bbaa += bbaa_vec[k] * w;
+        }
+      }
+      else
+      {
+        for (k = 0; k < ss->length; ++k)
+        {
+          abba += abba_vec[k];
+          baba += baba_vec[k];
+          bbaa += bbaa_vec[k];
+        }
       }
 
       /* calculate gamma with guard */
@@ -1029,6 +1066,12 @@ void cmd_fbranch()
   msa_list = phylip_parse_multisequential(fd, &msa_count);
   assert(msa_list);
   phylip_close(fd);
+
+  /* reject JC69-compressed input (see cmd_dstat for the rationale) */
+  for (i = 0; i < msa_count; ++i)
+    if (msa_list[i]->compress_model == COMPRESS_JC69)
+      fatal("--fbranch does not support JC69 pattern-compressed alignments; "
+            "use uncompressed input or GTR-compressed input");
 
   if (!opt_mapfile)
     fatal("A map file needs to be specified with the --map option....");

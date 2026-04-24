@@ -723,6 +723,18 @@ static msa_t * condense_msa(msa_t * msa,
 
   free(sp_seqcount);
   free(sp_allele_code);
+
+  /* propagate pattern-compression metadata: condense_msa collapses rows
+     (individuals -> species), not sites, so pattern_weights carry over */
+  if (msa->pattern_weights)
+  {
+    newmsa->pattern_weights =
+      (unsigned int *)xmalloc((size_t)msa->length * sizeof(unsigned int));
+    memcpy(newmsa->pattern_weights, msa->pattern_weights,
+           (size_t)msa->length * sizeof(unsigned int));
+    newmsa->compress_model = msa->compress_model;
+  }
+
   return newmsa;
 }
 #endif
@@ -1034,6 +1046,17 @@ static msa_t * subsample_msa(msa_t * msa,
 
 
   #endif
+
+  /* propagate pattern-compression metadata (site count is unchanged) */
+  if (msa->pattern_weights)
+  {
+    newmsa->pattern_weights =
+      (unsigned int *)xmalloc((size_t)msa->length * sizeof(unsigned int));
+    memcpy(newmsa->pattern_weights, msa->pattern_weights,
+           (size_t)msa->length * sizeof(unsigned int));
+    newmsa->compress_model = msa->compress_model;
+  }
+
   return newmsa;
 }
 
@@ -1218,6 +1241,10 @@ static double calculate_d_vec(msa_t * msa, double * vec, double * fabbaptr, doub
                 #if 0
                 printf("  %f", patscore);
                 #endif
+
+                /* weight by pattern multiplicity if input is compressed */
+                if (msa->pattern_weights)
+                  patscore *= (double)msa->pattern_weights[i];
 
                 fabbabababbaa += patscore;
 
@@ -1861,6 +1888,12 @@ void cmd_hyde()
 
   phylip_close(fd);
 
+  /* reject JC69-compressed input (see cmd_dstat for the rationale) */
+  for (i = 0; i < msa_count; ++i)
+    if (msa_list[i]->compress_model == COMPRESS_JC69)
+      fatal("--hyde does not support JC69 pattern-compressed alignments; "
+            "use uncompressed input or GTR-compressed input");
+
   #if 0
   /* TODO: For now we only allow one alignment */
   assert(msa_count == 1);
@@ -2055,11 +2088,24 @@ void cmd_hyde()
     double dbg_abba = 0;
     double dbg_baba = 0;
     double dbg_bbaa = 0;
-    for (i = 0; i < ss->length; ++i)
+    if (condmsa->pattern_weights)
     {
-      dbg_abba += abba_vec[i];
-      dbg_baba += baba_vec[i];
-      dbg_bbaa += bbaa_vec[i];
+      for (i = 0; i < ss->length; ++i)
+      {
+        double w = (double)condmsa->pattern_weights[i];
+        dbg_abba += abba_vec[i] * w;
+        dbg_baba += baba_vec[i] * w;
+        dbg_bbaa += bbaa_vec[i] * w;
+      }
+    }
+    else
+    {
+      for (i = 0; i < ss->length; ++i)
+      {
+        dbg_abba += abba_vec[i];
+        dbg_baba += baba_vec[i];
+        dbg_bbaa += bbaa_vec[i];
+      }
     }
     #if 1
     printf(ANSI_COLOR_RED "ABBA: %f    BABA: %f    BBAA: %f" ANSI_COLOR_RESET "\n", dbg_abba, dbg_baba, dbg_bbaa);
@@ -2256,15 +2302,7 @@ void cmd_hyde()
 
   rnd_fini();
 
-  for (i = 0; i < concat->count; ++i)
-  {
-    free(concat->label[i]);
-    free(concat->sequence[i]);
-  }
-  free(concat->label);
-  free(concat->sequence);
-  free(concat);
-
+  msa_destroy(concat);
   msa_destroy(condmsa);
 
   for (i = 0; i < 4; ++i)

@@ -398,7 +398,7 @@ extern long opt_dstat_all;
 extern long opt_explode;
 extern long opt_extract;
 extern long opt_fbranch;
-extern long opt_help;
+extern char * opt_help;
 extern long opt_info;
 extern long opt_jackknife;
 extern long opt_quiet;
@@ -408,6 +408,7 @@ extern long opt_verbose;
 extern long opt_version;
 extern double opt_ci_alpha;
 extern char * cmdline;
+extern char * progname;
 extern char * opt_msafile;
 extern char * opt_outfile;
 extern char * opt_compress_model;
@@ -596,6 +597,10 @@ long list_delitem(list_t * list, list_item_t * item, void (*cb_dealloc)(void *))
 
 /* functions in extract.c */
 void cmd_extract();
+
+/* functions in help.c */
+void cmd_help(void);
+void cmd_help_command(const char * cmd);
 
 /* functions in info.c */
 void cmd_info();

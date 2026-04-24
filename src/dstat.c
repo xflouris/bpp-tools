@@ -698,11 +698,46 @@ static char ** split4(const char * s)
   return taxa;
 }
 
+/* Build a prefix-sum array from pattern weights.  cum[j] is the total
+   number of original sites represented by patterns [0..j], i.e.
+   cum[j] = w[0] + w[1] + ... + w[j].  cum[n-1] is the original alignment
+   length.  Caller owns the returned array. */
+static unsigned long * build_cum_weights(const unsigned int * w, long n)
+{
+  long i;
+  unsigned long s = 0;
+  unsigned long * cum = (unsigned long *)xmalloc((size_t)n *
+                                                 sizeof(unsigned long));
+  for (i = 0; i < n; ++i)
+  {
+    s += w[i];
+    cum[i] = s;
+  }
+  return cum;
+}
+
+/* Given a cumulative-weight array cum[0..n-1] and a uniform random integer
+   r in [0, cum[n-1]-1], return the pattern index whose weight "owns" that
+   original-site index.  That is, the smallest j such that r < cum[j]. */
+static long cum_weight_lookup(const unsigned long * cum, long n,
+                              unsigned long r)
+{
+  long lo = 0, hi = n - 1;
+  while (lo < hi)
+  {
+    long mid = lo + (hi - lo) / 2;
+    if (r < cum[mid]) hi = mid;
+    else               lo = mid + 1;
+  }
+  return lo;
+}
+
 static double resample_condensed_save(msa_t ** msa_list,
                                       msa_t * ss,
                                       double * abba_vec,
                                       double * baba_vec,
-                                      long count)
+                                      long count,
+                                      unsigned long ** cum_weights)
 {
   long i,j;
   long indices;
@@ -723,11 +758,39 @@ static double resample_condensed_save(msa_t ** msa_list,
 
   for (i = 0; i < count; ++i)
   {
-    long length = msa_list[rindex[i]]->length;
+    msa_t * m = msa_list[rindex[i]];
+    long pat_count = m->length;
+    long draws;
+    unsigned long total;
 
-    for (j = 0; j < length; ++j)
+    if (m->pattern_weights)
     {
-      indices = (long)(rndu(0)*length);
+      /* pattern-compressed: draw 'total' original sites with replacement,
+         each draw produces a pattern index via weighted lookup. This is
+         statistically equivalent to sampling sites from the uncompressed
+         alignment. */
+      total = cum_weights[rindex[i]][pat_count - 1];
+      draws = (long)total;
+    }
+    else
+    {
+      total = (unsigned long)pat_count;
+      draws = pat_count;
+    }
+
+    for (j = 0; j < draws; ++j)
+    {
+      if (m->pattern_weights)
+      {
+        unsigned long r = (unsigned long)(rndu(0) * (double)total);
+        if (r >= total) r = total - 1;  /* clamp: rndu can return 1.0 */
+        indices = cum_weight_lookup(cum_weights[rindex[i]], pat_count, r);
+      }
+      else
+      {
+        indices = (long)(rndu(0) * (double)pat_count);
+        if (indices >= pat_count) indices = pat_count - 1;
+      }
 
       abba_count += abba_vec[spos[rindex[i]] + indices];
       baba_count += baba_vec[spos[rindex[i]] + indices];
@@ -769,10 +832,22 @@ static double * jackknife(msa_t ** msa_list,
     {
       if (i == j) continue;
 
-      for (k = 0; k < msa_list[j]->length; ++k)
+      if (msa_list[j]->pattern_weights)
       {
-        abba_count += abba_vec[spos[j] + k];
-        baba_count += baba_vec[spos[j] + k];
+        for (k = 0; k < msa_list[j]->length; ++k)
+        {
+          double w = (double)msa_list[j]->pattern_weights[k];
+          abba_count += abba_vec[spos[j] + k] * w;
+          baba_count += baba_vec[spos[j] + k] * w;
+        }
+      }
+      else
+      {
+        for (k = 0; k < msa_list[j]->length; ++k)
+        {
+          abba_count += abba_vec[spos[j] + k];
+          baba_count += baba_vec[spos[j] + k];
+        }
       }
     }
     if (abba_count + baba_count == 0)
@@ -889,6 +964,21 @@ void cmd_dstat()
   double * abba_vec = (double *)xmalloc((size_t)condmsa->length * sizeof(double));
   double * baba_vec = (double *)xmalloc((size_t)condmsa->length * sizeof(double));
 
+  /* For pattern-compressed input, precompute cumulative weight arrays so
+     the bootstrap can draw one site at a time by binary-searching the
+     cumulative weights. One array per locus (only msa_list[0] matters
+     today since concatenate() rejects multi-locus compressed input). */
+  unsigned long ** cum_weights = NULL;
+  if (condmsa->pattern_weights)
+  {
+    cum_weights = (unsigned long **)xcalloc((size_t)msa_count,
+                                            sizeof(unsigned long *));
+    for (i = 0; i < msa_count; ++i)
+      if (msa_list[i]->pattern_weights)
+        cum_weights[i] = build_cum_weights(msa_list[i]->pattern_weights,
+                                           msa_list[i]->length);
+  }
+
   /* TF: 7/12/2023
   changed to iterate 6 permutaions */
   for (t = 0; t < 6; ++t)
@@ -999,38 +1089,26 @@ void cmd_dstat()
     double ci_lo = 0, ci_hi = 0;
     double * djack = NULL;
 
-    if (condmsa->pattern_weights)
+    rnd_init();
+    for (i = 0; i < opt_bscount; ++i)
     {
-      /* Bootstrap/jackknife resample sites; on pattern-compressed input
-         they would uniformly sample patterns, giving each pattern equal
-         weight regardless of pattern_weights[i]. That is statistically
-         wrong for non-uniform weights. Emit a placeholder CI instead of
-         producing misleading numbers. */
-      ci = xstrdup("(compressed:N/A)");
-      jack_ci = xstrdup("(compressed:N/A)");
+      dilist[i] = resample_condensed_save(msa_list, ss, abba_vec,
+                                          baba_vec, msa_count,
+                                          cum_weights);
     }
-    else
-    {
-      rnd_init();
-      for (i = 0; i < opt_bscount; ++i)
-      {
-        dilist[i] = resample_condensed_save(msa_list, ss, abba_vec,
-                                            baba_vec, msa_count);
-      }
 
-      qsort(dilist, opt_bscount, sizeof(double), cb_cmp_double);
+    qsort(dilist, opt_bscount, sizeof(double), cb_cmp_double);
 
-      ci_lo = dilist[(long)(opt_bscount*(opt_ci_alpha/2))];
-      ci_hi = dilist[(long)(opt_bscount*(1-opt_ci_alpha/2))];
+    ci_lo = dilist[(long)(opt_bscount*(opt_ci_alpha/2))];
+    ci_hi = dilist[(long)(opt_bscount*(1-opt_ci_alpha/2))];
 
-      djack = jackknife(msa_list, ss, abba_vec, baba_vec, msa_count);
-      qsort(djack, msa_count, sizeof(double), cb_cmp_double);
-      double jack_ci_lo = djack[0];
-      double jack_ci_hi = djack[msa_count-1];
-      xasprintf(&jack_ci, "(%.6f,%.6f)", jack_ci_lo, jack_ci_hi);
+    djack = jackknife(msa_list, ss, abba_vec, baba_vec, msa_count);
+    qsort(djack, msa_count, sizeof(double), cb_cmp_double);
+    double jack_ci_lo = djack[0];
+    double jack_ci_hi = djack[msa_count-1];
+    xasprintf(&jack_ci, "(%.6f,%.6f)", jack_ci_lo, jack_ci_hi);
 
-      xasprintf(&ci, "(%.6f,%.6f)", ci_lo, ci_hi);
-    }
+    xasprintf(&ci, "(%.6f,%.6f)", ci_lo, ci_hi);
     if (opt_ansi && (ci_lo > 0 || ci_hi < 0))
       printf(ANSI_COLOR_RED);
 
@@ -1077,6 +1155,13 @@ void cmd_dstat()
 
   free(abba_vec);
   free(baba_vec);
+
+  if (cum_weights)
+  {
+    for (i = 0; i < msa_count; ++i)
+      if (cum_weights[i]) free(cum_weights[i]);
+    free(cum_weights);
+  }
 
   list_clear(maplist, map_dealloc);
   free(maplist);

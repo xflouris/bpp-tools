@@ -25,7 +25,7 @@
 #include "getopt_win.h"
 #endif
 
-static char * progname;
+char * progname;
 static char progheader[80];
 char * cmdline;
 
@@ -46,7 +46,7 @@ long opt_dstat_all;
 long opt_explode;
 long opt_extract;
 long opt_fbranch;
-long opt_help;
+char * opt_help;
 long opt_info;
 long opt_jackknife;
 long opt_quiet;
@@ -83,7 +83,7 @@ long altivec_present;
 
 static struct option long_options[] =
 {
-  {"help",         no_argument,       0, 0 },  /*  0 */
+  {"help",         optional_argument, 0, 0 },  /*  0 */
   {"version",      no_argument,       0, 0 },  /*  1 */
   {"quiet",        no_argument,       0, 0 },  /*  2 */
   {"msa",          required_argument, 0, 0 },  /*  3 */
@@ -147,7 +147,7 @@ void args_init(int argc, char ** argv)
   opt_explode = 0;
   opt_fbranch = 0;
   opt_nachar_default = '-';
-  opt_help = 0;
+  opt_help = NULL;
   opt_info = 0;
   opt_jackknife = 0;
   opt_mapfile = NULL;
@@ -171,7 +171,7 @@ void args_init(int argc, char ** argv)
     switch (option_index)
     {
       case 0:
-        opt_help = 1;
+        opt_help = optarg ? optarg : "";
         break;
 
       case 1:
@@ -298,6 +298,11 @@ void args_init(int argc, char ** argv)
   if (c != -1)
     exit(EXIT_FAILURE);
 
+  /* if --help was given without '=' and a non-option argument follows,
+     treat it as the help topic (e.g. --help dstat) */
+  if (opt_help && opt_help[0] == '\0' && optind < argc)
+    opt_help = argv[optind];
+
   int commands  = 0;
 
   /* check for number of independent commands selected */
@@ -375,49 +380,6 @@ void cmd_none()
             progname);
 }
 
-void cmd_help()
-{
-  /*         0         1         2         3         4         5         6         7          */
-  /*         01234567890123456789012345678901234567890123456789012345678901234567890123456789 */
-
-  fprintf(stderr,
-          "Usage: %s [OPTIONS]\n", progname);
-
-  fprintf(stderr,
-          "\n"
-          "General options:\n"
-          "  --help             display help information\n"
-          "  --version          display version information\n"
-          "  --quiet            only print warnings and fatal errors (stderr)\n"
-          "  --dstat taxa       run dstatistics\n"
-          "\n"
-          "Split multi-locus PHYLIP file to individual alignments\n"
-          "  --explode\n"
-          " Parameters\n"
-          "  --msa FILENAME     multi-locus PHYLIP file to be split\n"
-          "  --out FILENAME     template name for output files\n"
-          "\n"
-          "Concatenate multilocus PHYLIP alignments\n"
-          "  --concat           concatenate and create partition information\n"
-          " Parameters\n"
-          "  --msa FILENAME     multi-locus PHYLIP file to concatenate\n"
-          "  --nachar CHAR      character to be used for missing data\n"
-          "  --out FILENAME     output file to store concatenated alignment\n"
-          "\n"
-          "Extract sequences from multilocus PHYLIP alignments\n"
-          "  --extract          extract sequences and place into a new file\n"
-          " Parameters\n"
-          "  --msa FILENAME     multi-locus PHYLIP file from which to extract\n"
-          "  --label_list CSV   comma-separated sequence labels to match\n"
-          "  --tag_list CSV     comma-separated sequence tags to match\n"
-          "  --species_list CSV comma-separated species to match\n"
-          "  --mapfile FILENAME map file (required for --species_list)\n"
-         );
-
-  /*         0         1         2         3         4         5         6         7          */
-  /*         01234567890123456789012345678901234567890123456789012345678901234567890123456789 */
-}
-
 void getentirecommandline(int argc, char * argv[])
 {
   int len = 0;
@@ -470,7 +432,10 @@ int main (int argc, char * argv[])
 
   if (opt_help)
   {
-    cmd_help();
+    if (opt_help[0] == '\0')
+      cmd_help();
+    else
+      cmd_help_command(opt_help);
   }
   else if (opt_version)
   {

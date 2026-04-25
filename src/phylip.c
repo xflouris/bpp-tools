@@ -735,7 +735,7 @@ msa_t ** phylip_parse_multisequential(phylip_t * fd, long * count)
 
     msa[*count] = phylip_parse_sequential(fd);
     if (msa[*count] == NULL)
-      fatal("%s",bpp_errmsg);
+      fatal("alignment %ld: %s", *count + 1, bpp_errmsg);
 
     *count = *count + 1;
 

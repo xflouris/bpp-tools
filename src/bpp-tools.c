@@ -35,7 +35,6 @@ __THREAD char bpp_errmsg[200] = {0};
 
 /* options */
 char opt_nachar_default;
-long opt_ansi;
 long opt_arch;
 long opt_bscount;
 long opt_compress;
@@ -136,7 +135,6 @@ void args_init(int argc, char ** argv)
 
   progname = argv[0];
 
-  opt_ansi = 1;
   opt_arch = -1;
   opt_bscount = 1000;
   opt_ci_alpha = 0.05;

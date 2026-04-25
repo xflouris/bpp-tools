@@ -31,15 +31,7 @@ void fatal(const char * format, ...)
 {
   va_list argptr;
   va_start(argptr, format);
-  if (opt_ansi)
-  {
-    char * fmt;
-    xasprintf(&fmt, "%s %s", BPP_FAIL, format);
-    vfprintf(stderr, fmt, argptr);
-    free(fmt);
-  }
-  else
-    vfprintf(stderr, format, argptr);
+  vfprintf(stderr, format, argptr);
   va_end(argptr);
   fprintf(stderr, "\n");
   exit(1);
@@ -49,16 +41,7 @@ void xwarn(const char * format, ...)
 {
   va_list argptr;
   va_start(argptr, format);
-  if (opt_ansi)
-  {
-    char * fmt;
-    xasprintf(&fmt, "%s %s", BPP_WARN, format);
-    vfprintf(stderr, fmt, argptr);
-    free(fmt);
-  }
-  else
-    vfprintf(stderr, format, argptr);
-
+  vfprintf(stderr, format, argptr);
   va_end(argptr);
   fprintf(stderr, "\n");
 }
@@ -67,16 +50,7 @@ void xdebug(const char * format, ...)
 {
   va_list argptr;
   va_start(argptr, format);
-  if (opt_ansi)
-  {
-    char * fmt;
-    xasprintf(&fmt, "%s %s", BPP_DEBUG, format);
-    vfprintf(stderr, fmt, argptr);
-    free(fmt);
-  }
-  else
-    vfprintf(stderr, format, argptr);
-
+  vfprintf(stderr, format, argptr);
   va_end(argptr);
   fprintf(stderr, "\n");
 }
@@ -85,16 +59,7 @@ void xdebug_noendl(const char * format, ...)
 {
   va_list argptr;
   va_start(argptr, format);
-  if (opt_ansi)
-  {
-    char * fmt;
-    xasprintf(&fmt, "%s %s", BPP_DEBUG, format);
-    vfprintf(stderr, fmt, argptr);
-    free(fmt);
-  }
-  else
-    vfprintf(stderr, format, argptr);
-
+  vfprintf(stderr, format, argptr);
   va_end(argptr);
 }
 

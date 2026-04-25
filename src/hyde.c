@@ -1172,25 +1172,16 @@ static double calculate_d_vec(msa_t * msa, double * vec, double * fabbaptr, doub
 
               if (ii[0] == ii[3] && ii[1] == ii[2] && ii[0] != ii[1])
               {
-                #if 0
-                printf(ANSI_COLOR_BLUE);
-                #endif
                 abba_count++;
                 found = 1;
               }
               if (ii[0] == ii[2] && ii[1] == ii[3] && ii[0] != ii[1])
               {
-                #if 0
-                printf(ANSI_COLOR_RED);
-                #endif
                 baba_count++;
                 found = 1;
               }
               if (ii[0] == ii[1] && ii[2] == ii[3] && ii[0] != ii[2])
               {
-                #if 0
-                printf(ANSI_COLOR_RED);
-                #endif
                 bbaa_count++;
                 found = 1;
               }
@@ -1267,17 +1258,6 @@ static double calculate_d_vec(msa_t * msa, double * vec, double * fabbaptr, doub
                 }
               }
 
-              #if 0
-              if (ii[0] == ii[3] && ii[1] == ii[2] && ii[0] != ii[1])
-              {
-                printf(ANSI_COLOR_RESET);
-              }
-              if (ii[0] == ii[2] && ii[1] == ii[3] && ii[0] != ii[1])
-              {
-                printf(ANSI_COLOR_RESET);
-              }
-              printf("\n");
-              #endif
             }
           }
         }
@@ -1302,12 +1282,10 @@ static double calculate_d_vec(msa_t * msa, double * vec, double * fabbaptr, doub
   if (opt_debug)
   {
     //printf("\n");
-    xdebug(ANSI_COLOR_BLUE
-           "c(abba): %ld (%.2f%%)   f(abba): %f (%.2f%%)" ANSI_COLOR_RESET,
+    xdebug("c(abba): %ld (%.2f%%)   f(abba): %f (%.2f%%)",
            abba_count, ((double)abba_count / msa->length)*100,
            fabba, (fabba/(fabba+fbaba))*100);
-    xdebug(ANSI_COLOR_RED
-           "c(baba): %ld (%.2f%%)   f(baba): %f (%.2f%%)" ANSI_COLOR_RESET,
+    xdebug("c(baba): %ld (%.2f%%)   f(baba): %f (%.2f%%)",
            baba_count, ((double)baba_count / msa->length)*100,
            fbaba, (fbaba/(fabba+fbaba))*100);
     xdebug("f(abba)-f(baba): %f", fabba-fbaba);
@@ -1964,7 +1942,7 @@ void cmd_hyde()
 
   if (opt_debug)
   {
-    xdebug(ANSI_COLOR_RED "1. PHYLIP alignment loaded from %s" ANSI_COLOR_RESET, opt_msafile);
+    xdebug("1. PHYLIP alignment loaded from %s", opt_msafile);
     phylip_print(stdout, concat);
   }
 
@@ -1980,7 +1958,7 @@ void cmd_hyde()
   #if 1
   if (opt_debug)
   {
-    xdebug(ANSI_COLOR_RED "2. Condensed alignment:" ANSI_COLOR_RESET);
+    xdebug("2. Condensed alignment:");
     phylip_print(stdout, condmsa);
 
     xdebug("Per site nucleotide character probability vectors for each species:");
@@ -2054,7 +2032,7 @@ void cmd_hyde()
 
     if (opt_debug)
     {
-      xdebug(ANSI_COLOR_RED "3. Filtered alignment for 4 species: %s" ANSI_COLOR_RESET, opt_hyde);
+      xdebug("3. Filtered alignment for 4 species: %s", opt_hyde);
       phylip_print(stdout, ss);
     }
 
@@ -2108,7 +2086,7 @@ void cmd_hyde()
       }
     }
     #if 1
-    printf(ANSI_COLOR_RED "ABBA: %f    BABA: %f    BBAA: %f" ANSI_COLOR_RESET "\n", dbg_abba, dbg_baba, dbg_bbaa);
+    printf("ABBA: %f    BABA: %f    BBAA: %f\n", dbg_abba, dbg_baba, dbg_bbaa);
     #endif
     #endif
 
@@ -2153,7 +2131,7 @@ void cmd_hyde()
     if (opt_debug)
     {
       xdebug("");
-      xdebug(ANSI_COLOR_RED "4. Resampling and bootstraping..." ANSI_COLOR_RESET);
+      xdebug("4. Resampling and bootstraping...");
       xdebug("");
     }
     exit(0);
@@ -2197,27 +2175,23 @@ void cmd_hyde()
     xasprintf(&jack_ci, "(%.6f,%.6f)", jack_ci_lo, jack_ci_hi);
 
     xasprintf(&ci, "(%.6f,%.6f)", ci_lo, ci_hi);
-    if (opt_ansi && (ci_lo > 0 || ci_hi < 0))
-      printf(ANSI_COLOR_RED);
 
     /* TF 7/12/2023 removed jackknife from prinout */
     #if 0
-    printf("%*.6f %*.6f %*.6f %*s (((%s,%s),%s),%s); %s\n", 
+    printf("%*.6f %*.6f %*.6f %*s (((%s,%s),%s),%s); %s\n",
            (int)colsize[0], dscore,
            (int)colsize[1], fabba,
            (int)colsize[2], fbaba,
            (int)colsize[3], ci,
            taxa[0],taxa[1],taxa[2],taxa[3], jack_ci);
     #else
-    printf("%*.6f %*.6f %*.6f %*s (((%s,%s),%s),%s);\n", 
+    printf("%*.6f %*.6f %*.6f %*s (((%s,%s),%s),%s);\n",
            (int)colsize[0], dscore,
            (int)colsize[1], fabba,
            (int)colsize[2], fbaba,
            (int)colsize[3], ci,
            taxa[0],taxa[1],taxa[2],taxa[3]);
     #endif
-    if (opt_ansi && (ci_lo > 0 || ci_hi < 0))
-      printf(ANSI_COLOR_RESET);
     free(ci);
 
     free(jack_ci);

@@ -171,20 +171,6 @@
 #define PLL_ATTRIB_ARCH_AVX512    (1 << 3)
 #define PLL_ATTRIB_ARCH_MASK         0xF
 
-/* ANSI color codes */
-
-#define ANSI_COLOR_RED     "\x1b[31m"
-#define ANSI_COLOR_GREEN   "\x1b[32m"
-#define ANSI_COLOR_YELLOW  "\x1b[33m"
-#define ANSI_COLOR_BLUE    "\x1b[34m"
-#define ANSI_COLOR_MAGENTA "\x1b[35m"
-#define ANSI_COLOR_CYAN    "\x1b[36m"
-#define ANSI_COLOR_RESET   "\x1b[0m"
-
-#define BPP_FAIL   "[" ANSI_COLOR_RED "FAIL" ANSI_COLOR_RESET "]"
-#define BPP_WARN   "[" ANSI_COLOR_YELLOW "WARN" ANSI_COLOR_RESET "]"
-#define BPP_DEBUG  "[" ANSI_COLOR_CYAN "DEBUG" ANSI_COLOR_RESET "]"
-
 /* structures and data types */
 
 typedef unsigned int UINT32;
@@ -387,7 +373,6 @@ typedef struct rtree_s
 /* options */
 
 extern char opt_nachar_default;
-extern long opt_ansi;
 extern long opt_arch;
 extern long opt_bscount;
 extern long opt_compress;

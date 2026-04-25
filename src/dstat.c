@@ -910,7 +910,7 @@ void cmd_dstat()
 
   if (opt_debug)
   {
-    xdebug(ANSI_COLOR_RED "1. PHYLIP alignment loaded from %s" ANSI_COLOR_RESET, opt_msafile);
+    xdebug("1. PHYLIP alignment loaded from %s", opt_msafile);
     phylip_print(stdout, concat);
   }
 
@@ -928,7 +928,7 @@ void cmd_dstat()
 
   if (opt_debug)
   {
-    xdebug(ANSI_COLOR_RED "2. Condensed alignment:" ANSI_COLOR_RESET);
+    xdebug("2. Condensed alignment:");
     phylip_print(stdout, condmsa);
 
     xdebug("Per site nucleotide character probability vectors for each species:");
@@ -1000,7 +1000,7 @@ void cmd_dstat()
 
     if (opt_debug)
     {
-      xdebug(ANSI_COLOR_RED "3. Filtered alignment for 4 species: %s" ANSI_COLOR_RESET, opt_dstat);
+      xdebug("3. Filtered alignment for 4 species: %s", opt_dstat);
       phylip_print(stdout, ss);
     }
 
@@ -1080,7 +1080,7 @@ void cmd_dstat()
     if (opt_debug)
     {
       xdebug("");
-      xdebug(ANSI_COLOR_RED "4. Resampling and bootstraping..." ANSI_COLOR_RESET);
+      xdebug("4. Resampling and bootstraping...");
       xdebug("");
     }
 
@@ -1109,8 +1109,6 @@ void cmd_dstat()
     xasprintf(&jack_ci, "(%.6f,%.6f)", jack_ci_lo, jack_ci_hi);
 
     xasprintf(&ci, "(%.6f,%.6f)", ci_lo, ci_hi);
-    if (opt_ansi && (ci_lo > 0 || ci_hi < 0))
-      printf(ANSI_COLOR_RED);
 
     printf("%*.6f %*.6f %*.6f %*s (((%s,%s),%s),%s);\n",
            (int)colsize[0], dscore,
@@ -1118,8 +1116,6 @@ void cmd_dstat()
            (int)colsize[2], fbaba,
            (int)colsize[3], ci,
            taxa[0],taxa[1],taxa[2],taxa[3]);
-    if (opt_ansi && (ci_lo > 0 || ci_hi < 0))
-      printf(ANSI_COLOR_RESET);
     free(ci);
 
     free(jack_ci);

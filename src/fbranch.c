@@ -1083,8 +1083,7 @@ void cmd_fbranch()
 
   if (opt_debug)
   {
-    xdebug(ANSI_COLOR_RED "1. PHYLIP alignment loaded from %s" ANSI_COLOR_RESET,
-           opt_msafile);
+    xdebug("1. PHYLIP alignment loaded from %s", opt_msafile);
     phylip_print(stdout, concat);
   }
 
@@ -1118,7 +1117,7 @@ void cmd_fbranch()
   #if 1
   if (opt_debug)
   {
-    xdebug(ANSI_COLOR_RED "2. Condensed alignment:" ANSI_COLOR_RESET);
+    xdebug("2. Condensed alignment:");
     phylip_print(stdout, condmsa);
     debug_print_vec(vec,condmsa);
   }

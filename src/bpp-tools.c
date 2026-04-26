@@ -48,7 +48,9 @@ long opt_fbranch;
 char * opt_help;
 long opt_info;
 long opt_jackknife;
+long opt_per_locus;
 long opt_quiet;
+long opt_show_labels;
 long opt_seed;
 long opt_threads;
 long opt_verbose;
@@ -115,6 +117,8 @@ static struct option long_options[] =
   {"model",        required_argument, 0, 0 },  /* 28 */
   {"keep-loci",    required_argument, 0, 0 },  /* 29 */
   {"drop-loci",    required_argument, 0, 0 },  /* 30 */
+  {"per-locus",    no_argument,       0, 0 },  /* 31 */
+  {"show-labels",  no_argument,       0, 0 },  /* 32 */
   { 0, 0, 0, 0 }
 };
 
@@ -168,6 +172,8 @@ void args_init(int argc, char ** argv)
   opt_compress_model = NULL;
   opt_keep_loci = NULL;
   opt_drop_loci = NULL;
+  opt_per_locus = 0;
+  opt_show_labels = 0;
 
 
   while ((c = getopt_long_only(argc, argv, "", long_options, &option_index)) == 0)
@@ -300,6 +306,14 @@ void args_init(int argc, char ** argv)
 
       case 30:
         opt_drop_loci = xstrdup(optarg);
+        break;
+
+      case 31:
+        opt_per_locus = 1;
+        break;
+
+      case 32:
+        opt_show_labels = 1;
         break;
 
       default:

@@ -402,6 +402,8 @@ extern char * opt_hyde;
 extern char * opt_mapfile;
 extern char * opt_nachar;
 extern char * opt_remove;
+extern char * opt_keep_loci;
+extern char * opt_drop_loci;
 extern char * opt_label_list;
 extern char * opt_species_list;
 extern char * opt_tag_list;
@@ -586,6 +588,10 @@ void cmd_extract();
 /* functions in help.c */
 void cmd_help(void);
 void cmd_help_command(const char * cmd);
+
+/* functions in loci.c */
+void cmd_keep_loci(void);
+void cmd_drop_loci(void);
 
 /* functions in info.c */
 void cmd_info();

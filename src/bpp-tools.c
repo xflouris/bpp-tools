@@ -62,6 +62,8 @@ char * opt_msafile;
 char * opt_nachar;
 char * opt_outfile;
 char * opt_remove;
+char * opt_keep_loci;
+char * opt_drop_loci;
 char * opt_label_list;
 char * opt_species_list;
 char * opt_tag_list;
@@ -111,6 +113,8 @@ static struct option long_options[] =
   {"outgroup",     required_argument, 0, 0 },  /* 26 */
   {"compress",     no_argument,       0, 0 },  /* 27 */
   {"model",        required_argument, 0, 0 },  /* 28 */
+  {"keep-loci",    required_argument, 0, 0 },  /* 29 */
+  {"drop-loci",    required_argument, 0, 0 },  /* 30 */
   { 0, 0, 0, 0 }
 };
 
@@ -162,6 +166,8 @@ void args_init(int argc, char ** argv)
   opt_concat = 0;
   opt_compress = 0;
   opt_compress_model = NULL;
+  opt_keep_loci = NULL;
+  opt_drop_loci = NULL;
 
 
   while ((c = getopt_long_only(argc, argv, "", long_options, &option_index)) == 0)
@@ -288,6 +294,14 @@ void args_init(int argc, char ** argv)
         opt_compress_model = xstrdup(optarg);
         break;
 
+      case 29:
+        opt_keep_loci = xstrdup(optarg);
+        break;
+
+      case 30:
+        opt_drop_loci = xstrdup(optarg);
+        break;
+
       default:
         fatal("Internal error in option parsing");
     }
@@ -326,6 +340,10 @@ void args_init(int argc, char ** argv)
     commands++;
   if (opt_compress)
     commands++;
+  if (opt_keep_loci)
+    commands++;
+  if (opt_drop_loci)
+    commands++;
 
   /* if more than one independent command, fail */
   if (commands > 1)
@@ -356,6 +374,8 @@ static void dealloc_switches()
   if (opt_treefile) free(opt_treefile);
   if (opt_outgroup) free(opt_outgroup);
   if (opt_compress_model) free(opt_compress_model);
+  if (opt_keep_loci) free(opt_keep_loci);
+  if (opt_drop_loci) free(opt_drop_loci);
 }
 
 void cmd_none()
@@ -474,6 +494,14 @@ int main (int argc, char * argv[])
   else if (opt_compress)
   {
     cmd_compress();
+  }
+  else if (opt_keep_loci)
+  {
+    cmd_keep_loci();
+  }
+  else if (opt_drop_loci)
+  {
+    cmd_drop_loci();
   }
   else
     cmd_none();

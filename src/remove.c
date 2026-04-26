@@ -236,7 +236,7 @@ void cmd_remove()
     phylip_print(fpout, new_list[i]);
 
   if (opt_outfile)
-    fclose(fpout);
+    xclose(fpout);
 
   /* dealloc */
   free(sp_tokens);

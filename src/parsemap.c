@@ -198,7 +198,7 @@ list_t * parse_mapfile(const char * mapfile)
   }
 
 l_unwind:
-  fclose(fp);
+  xclose(fp);
   if (ret == 0)
   {
     list_clear(list,map_dealloc);

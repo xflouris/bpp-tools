@@ -480,6 +480,7 @@ char * xstrdup(const char * s);
 char * xstrndup(const char * s, size_t len);
 long getusec(void);
 FILE * xopen(const char * filename, const char * mode);
+int xclose(FILE * fp);
 void * pll_aligned_alloc(size_t size, size_t alignment);
 void pll_aligned_free(void * ptr);
 int xtolower(int c);

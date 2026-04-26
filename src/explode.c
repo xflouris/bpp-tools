@@ -50,6 +50,12 @@ void cmd_explode()
     if (msa_list[i]->pattern_weights)
       fatal("--explode does not yet support pattern-compressed alignments");
 
+  /* --out '-' (stdout) is meaningless here: the output is a file template
+     producing one PHYLIP file per locus (`<template>.<idx>`). Reject early. */
+  if (opt_outfile && opt_outfile[0] == '-' && opt_outfile[1] == '\0')
+    fatal("--explode does not support '-' (stdout) for the --out template; "
+          "specify a real prefix");
+
   /* write separate files */
   outfile = opt_outfile ? xstrdup(opt_outfile) : xstrdup(opt_msafile);
   for (i = 0; i < msa_count; ++i)
@@ -60,7 +66,7 @@ void cmd_explode()
 
     msa_destroy(msa_list[i]);
     free(filename);
-    fclose(fp_out);
+    xclose(fp_out);
   }
 
   printf("%ld alignments found in %s\n", msa_count, opt_msafile);

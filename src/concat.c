@@ -328,6 +328,6 @@ void cmd_concat()
   free(msa_list);
   free(outfile);
   free(partfile);
-  fclose(fp_out);
-  fclose(fp_part);
+  xclose(fp_out);
+  xclose(fp_part);
 }

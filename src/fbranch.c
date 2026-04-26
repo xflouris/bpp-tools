@@ -1300,7 +1300,7 @@ void cmd_fbranch()
   list_clear(maplist, map_dealloc);
   free(maplist);
 
-  fclose(fp_tree);
+  xclose(fp_tree);
   msa_destroy(concat);
   msa_destroy(condmsa);
   free(vec);

@@ -114,7 +114,7 @@ static void write_filtered_msa_list(msa_t ** msa_list,
   }
 
   if (opt_outfile)
-    fclose(fp);
+    xclose(fp);
 }
 
 static void run_loci_filter(const char * csv,

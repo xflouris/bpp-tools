@@ -445,7 +445,7 @@ void cmd_compress(void)
 
   /* teardown */
   if (opt_outfile)
-    fclose(fp_out);
+    xclose(fp_out);
   for (i = 0; i < msa_count; ++i)
     msa_destroy(msa_list[i]);
   free(msa_list);

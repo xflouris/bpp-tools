@@ -308,18 +308,24 @@ phylip_t * phylip_open(const char * filename,
 
   fd->chrstatus = map;
 
-  /* open file */
-  fd->fp = fopen(filename, "r");
-  if (!(fd->fp))
-    fatal("Unable to open file (%s)", filename);
+  /* open file (filename "-" routes to stdin via xopen) */
+  fd->fp = xopen(filename, "r");
 
-  /* get filesize */
-  if (fseek(fd->fp, 0, SEEK_END))
-    fatal("Unable to seek in file (%s)", filename);
+  if (fd->fp == stdin)
+  {
+    /* stdin (and pipes generally) are not seekable; skip the file-size
+       pre-scan. filesize == -1 is a sentinel for "unknown". */
+    fd->filesize = -1;
+  }
+  else
+  {
+    if (fseek(fd->fp, 0, SEEK_END))
+      fatal("Unable to seek in file (%s)", filename);
 
-  fd->filesize = ftell(fd->fp);
+    fd->filesize = ftell(fd->fp);
 
-  rewind(fd->fp);
+    rewind(fd->fp);
+  }
 
   /* reset stripped char frequencies */
   fd->stripped_count = 0;
@@ -331,7 +337,7 @@ phylip_t * phylip_open(const char * filename,
   {
     if (fd->line)
       free(fd->line);
-    fclose(fd->fp);
+    xclose(fd->fp);
     free(fd);
     return NULL;
   }
@@ -363,7 +369,7 @@ int phylip_rewind(phylip_t * fd)
 
 void phylip_close(phylip_t * fd)
 {
-  fclose(fd->fp);
+  xclose(fd->fp);
   if (fd->line)
     free(fd->line);
   free(fd);

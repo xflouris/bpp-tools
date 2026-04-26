@@ -159,11 +159,37 @@ long getusec(void)
 
 FILE * xopen(const char * filename, const char * mode)
 {
+  /* Treat a single `-` as a stdin/stdout marker (UNIX convention shared by
+     cat/awk/grep/etc). For read modes, return the standard input handle;
+     for write/append modes, return standard output. Only one input flag
+     may consume stdin per invocation, so we track that with a static. */
+  if (filename && filename[0] == '-' && filename[1] == '\0')
+  {
+    if (mode && mode[0] == 'r')
+    {
+      static int stdin_used = 0;
+      if (stdin_used)
+        fatal("only one input flag may be set to '-' (stdin)");
+      stdin_used = 1;
+      return stdin;
+    }
+    return stdout;
+  }
+
   FILE * out = fopen(filename, mode);
   if (!out)
     fatal("Cannot open file %s", filename);
 
   return out;
+}
+
+int xclose(FILE * fp)
+{
+  /* Skip closing the standard streams; the caller may still need to write
+     more output, and closing them on exit is the runtime's job. */
+  if (fp == stdin || fp == stdout || fp == stderr)
+    return 0;
+  return fclose(fp);
 }
 
 void * pll_aligned_alloc(size_t size, size_t alignment)

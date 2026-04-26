@@ -345,7 +345,7 @@ void cmd_extract()
     phylip_print(fp_out, new_list[i]);
 
   if (opt_outfile)
-    fclose(fp_out);
+    xclose(fp_out);
 
   /* check for labels that were not found */
   if (opt_label_list)

@@ -81,6 +81,33 @@ static long sum_pattern_weights(const msa_t * m)
   return s;
 }
 
+/* Count "missing data" cells in a single MSA. Following the AMAS / IQ-TREE
+   / RAxML convention, a cell counts as missing if its character is one of
+   '-', '?', 'N', 'n', 'X', 'x' (already the set lit up by
+   pll_map_nt_missing). For pattern-compressed input each pattern column
+   contributes pattern_weights[col] * (per-row missing flag), so the
+   returned counts match what the same calculation on the unpacked
+   alignment would produce. *out_total is set to the number of total
+   cells (rows * weighted-length). */
+static long count_missing_cells(const msa_t * m, long * out_total)
+{
+  long missing = 0, total = 0;
+  long row, col;
+  for (row = 0; row < m->count; ++row)
+  {
+    const char * s = m->sequence[row];
+    for (col = 0; col < m->length; ++col)
+    {
+      long w = m->pattern_weights ? (long)m->pattern_weights[col] : 1;
+      total += w;
+      if (pll_map_nt_missing[(unsigned char)s[col]])
+        missing += w;
+    }
+  }
+  if (out_total) *out_total = total;
+  return missing;
+}
+
 static const char * model_str(int compress_model)
 {
   if (compress_model == COMPRESS_JC69)    return "JC69";
@@ -136,13 +163,15 @@ void cmd_info()
            n_compressed, msa_count - n_compressed);
   printf("\n");
 
-  /* per-locus table */
+  /* per-locus table (miss% always shown; counts '-', '?', 'N', 'X' per
+     pll_map_nt_missing, weighted by pattern_weights when compressed) */
   printf("Per-locus summary:\n");
   if (any_compressed)
-    printf("  %5s  %5s  %8s  %5s  %12s\n",
-           "idx", "seqs", "length", "model", "weights_sum");
+    printf("  %5s  %5s  %8s  %5s  %12s  %6s\n",
+           "idx", "seqs", "length", "model", "weights_sum", "miss%");
   else
-    printf("  %5s  %5s  %8s\n", "idx", "seqs", "length");
+    printf("  %5s  %5s  %8s  %6s\n",
+           "idx", "seqs", "length", "miss%");
 
   int truncate = (msa_count > 10) && !opt_per_locus;
 
@@ -156,20 +185,26 @@ void cmd_info()
       continue;
     }
     msa_t * m = msa_list[i];
+    long m_total = 0;
+    long m_miss  = count_missing_cells(m, &m_total);
+    double m_pct = m_total ? 100.0 * (double)m_miss / (double)m_total : 0.0;
+
     if (any_compressed)
     {
       if (m->pattern_weights)
-        printf("  %5ld  %5d  %8d  %5s  %12ld\n",
+        printf("  %5ld  %5d  %8d  %5s  %12ld  %6.2f\n",
                i + 1, m->count, m->length,
                model_str(m->compress_model),
-               sum_pattern_weights(m));
+               sum_pattern_weights(m),
+               m_pct);
       else
-        printf("  %5ld  %5d  %8d  %5s  %12s\n",
-               i + 1, m->count, m->length, "-", "-");
+        printf("  %5ld  %5d  %8d  %5s  %12s  %6.2f\n",
+               i + 1, m->count, m->length, "-", "-", m_pct);
     }
     else
     {
-      printf("  %5ld  %5d  %8d\n", i + 1, m->count, m->length);
+      printf("  %5ld  %5d  %8d  %6.2f\n",
+             i + 1, m->count, m->length, m_pct);
     }
   }
   printf("\n");
@@ -178,6 +213,8 @@ void cmd_info()
   long total_seqs = 0;
   long total_len  = 0;
   long total_orig = 0;
+  long total_cells = 0;
+  long total_miss  = 0;
   long min_len = (msa_count > 0) ? msa_list[0]->length : 0;
   long max_len = 0;
   for (i = 0; i < msa_count; ++i)
@@ -188,6 +225,10 @@ void cmd_info()
     if (m->length < min_len) min_len = m->length;
     if (m->length > max_len) max_len = m->length;
     total_orig += m->pattern_weights ? sum_pattern_weights(m) : m->length;
+
+    long m_total = 0;
+    total_miss  += count_missing_cells(m, &m_total);
+    total_cells += m_total;
   }
 
   char ** unique_labels = NULL;
@@ -216,6 +257,15 @@ void cmd_info()
   {
     printf("  Total sites: %ld\n", total_len);
   }
+
+  /* AMAS-style "missing data" rate: cells whose character is one of
+     '-', '?', 'N', 'n', 'X', 'x' (the set lit up by pll_map_nt_missing).
+     For pattern-compressed input the count is weighted by pattern_weights
+     so the percentage matches what the unpacked alignment would show. */
+  double miss_pct = total_cells
+    ? 100.0 * (double)total_miss / (double)total_cells : 0.0;
+  printf("  Missing cells: %.2f%% (%ld / %ld) [-,?,N,X]\n",
+         miss_pct, total_miss, total_cells);
 
   if (opt_show_labels && n_unique > 0)
   {

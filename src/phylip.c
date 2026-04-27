@@ -698,8 +698,28 @@ msa_t * phylip_parse_sequential(phylip_t * fd)
             msa_destroy(msa);
             return NULL;
           }
+          if ((unsigned long)val > (unsigned long)UINT_MAX)
+          {
+            bpp_errno = ERROR_PHYLIP_SYNTAX;
+            snprintf(bpp_errmsg, 200,
+                     "Weight at position %d exceeds maximum (%lu > %u)",
+                     w, (unsigned long)val, UINT_MAX);
+            msa_destroy(msa);
+            return NULL;
+          }
           msa->pattern_weights[w] = (unsigned int)val;
           wp = end;
+        }
+        /* No trailing content allowed: every entry must have been used. */
+        while (*wp && whitespace(*wp)) ++wp;
+        if (*wp)
+        {
+          bpp_errno = ERROR_PHYLIP_SYNTAX;
+          snprintf(bpp_errmsg, 200,
+                   "Weight vector has more entries than patterns (%d)",
+                   msa->length);
+          msa_destroy(msa);
+          return NULL;
         }
       }
       return msa;

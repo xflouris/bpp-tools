@@ -38,6 +38,16 @@ static unsigned char * parse_locus_csv_to_mask(const char * csv,
   unsigned char * mask = (unsigned char *)xcalloc((size_t)n_loci, 1);
   const char * p = csv;
 
+  /* reject all-whitespace / empty spec — silently emitting an empty file
+     (keep) or a verbatim copy (drop) is almost certainly not what the user
+     meant */
+  {
+    const char * q = csv;
+    while (*q && (*q == ' ' || *q == '\t')) ++q;
+    if (!*q)
+      fatal("%s: empty spec", flag_name);
+  }
+
   while (*p)
   {
     while (*p == ' ' || *p == '\t') ++p;

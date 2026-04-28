@@ -159,6 +159,9 @@ long getusec(void)
 
 FILE * xopen(const char * filename, const char * mode)
 {
+  if (!filename)
+    fatal("No filename specified");
+
   /* Treat a single `-` as a stdin/stdout marker (UNIX convention shared by
      cat/awk/grep/etc). For read modes, return the standard input handle;
      for write/append modes, return standard output. Only one input flag

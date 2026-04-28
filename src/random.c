@@ -25,24 +25,30 @@ static unsigned int * z_rndu = NULL;
 
 void rnd_init()
 {
-   int seed = (int)opt_seed;
+   unsigned int seed;
    long i;
 
    /* z_rndu = (unsigned int)opt_seed; */
    if (sizeof(int) != 4)
       fatal("oh-oh, we are in trouble.  int not 32-bit?  rndu() assumes 32-bit int.");
 
-   if (seed <= 0) {
+   if (opt_seed > 0) {
+      seed = (unsigned int)opt_seed;
+   }
+   else {
+      unsigned int raw_seed = 0;
       FILE *frand = fopen("/dev/urandom", "r");
       if (frand) {
-         if (fread(&seed, sizeof(int), 1, frand) != 1)
+         if (fread(&raw_seed, sizeof(raw_seed), 1, frand) != 1)
             fatal("failure to read white noise...");
          fclose(frand);
-         seed = abs(seed * 2 - 1);
       }
       else {
-         seed = abs(1234 * (int)time(NULL) + 1);
+         raw_seed = (unsigned int)time(NULL);
       }
+      seed = raw_seed * 2u + 1u;
+      if (!seed)
+        seed = 1u;
    }
 
    assert(opt_threads >= 1);
@@ -50,7 +56,7 @@ void rnd_init()
    if (z_rndu) free(z_rndu);
    z_rndu = (unsigned int *)xmalloc((size_t)opt_threads * sizeof(unsigned int));
    for (i = 0; i < opt_threads; ++i)
-     z_rndu[i] = (unsigned int)seed;
+     z_rndu[i] = seed;
 }
 
 void rnd_fini()

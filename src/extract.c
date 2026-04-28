@@ -161,7 +161,8 @@ void cmd_extract()
   if (opt_mapfile)
   {
     maplist = parse_mapfile(opt_mapfile);
-    maplist_print(maplist);
+    if (!maplist)
+      fatal("Cannot parse map file %s", opt_mapfile);
   }
 
   if (opt_species_list && !opt_mapfile)
@@ -306,7 +307,7 @@ void cmd_extract()
               break;
             }
           }
-          if (k && !index[j])
+          if (k != species_count && !index[j])
           {
             index[j] = 1;
             newmsa_count++;

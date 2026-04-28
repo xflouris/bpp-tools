@@ -353,6 +353,7 @@ msa_t * msa_create_copy(msa_t * msa,
         {
           --new_len;
           delsite[i] = 1;
+          break;
         }
       }
     }
@@ -367,13 +368,18 @@ msa_t * msa_create_copy(msa_t * msa,
   new = (msa_t *)xcalloc(1,sizeof(msa_t));
   new->count = new_count;
   new->length = new_len;
+  new->dtype = msa->dtype;
+  new->model = msa->model;
+  new->original_index = msa->original_index;
+  new->compress_model = -1;
   new->sequence = (char **)xmalloc((size_t)new_count * sizeof(char *));
   new->label    = (char **)xmalloc((size_t)new_count * sizeof(char *));
   for (i = 0, k = 0; i < msa->count; ++i)
   {
     if (bCopy && !bCopy[i]) continue;
 
-    new->sequence[k] = (char *)xmalloc((size_t)new_len * sizeof(char));
+    new->sequence[k] = (char *)xmalloc((size_t)(new_len+1) * sizeof(char));
+    new->sequence[k][new_len] = 0;
     new->label[k] = xstrdup(msa->label[i]);
     ++k;
   }
@@ -398,7 +404,6 @@ msa_t * msa_create_copy(msa_t * msa,
   /* TODO: Count ambiguous characters, frequencies */
     
 
-  free(new);
   free(delsite);
 
   return new;

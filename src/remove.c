@@ -117,6 +117,9 @@ void cmd_remove()
   msa_t ** msa_list;
   msa_t ** new_list;
 
+  if (!opt_msafile)
+    fatal("Please specify an input PHYLIP file using --msa");
+
   char ** tokens = split(opt_remove, ",", &token_count);
   if (!tokens)
     fatal("Cannot parse tokens");

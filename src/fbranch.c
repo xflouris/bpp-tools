@@ -1053,7 +1053,9 @@ void cmd_fbranch()
   msa_t ** msa_list;
 
   if (!opt_msafile)
-    fatal("Specify alignment using --msafile");
+    fatal("Please specify an input PHYLIP file using --msa");
+  if (!opt_treefile)
+    fatal("Specify tree file using --treefile");
   if (!opt_outgroup)
     fatal("Specify outgroup using --outgroup");
 

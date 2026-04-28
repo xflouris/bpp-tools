@@ -257,6 +257,9 @@ void cmd_concat()
   msa_t * concat;
   msa_t ** msa_list;
 
+  if (!opt_msafile)
+    fatal("Please specify an input PHYLIP file using --msa");
+
   /* check that there is only one missing data character */
   if (opt_nachar)
   {
@@ -296,7 +299,7 @@ void cmd_concat()
   #endif
 
   /* create partition file */
-  xasprintf(&partfile, "%s.part", opt_outfile);
+  xasprintf(&partfile, "%s.part", outfile);
   FILE * fp_part = xopen(partfile, "w");
 
   long offset;

@@ -90,7 +90,8 @@ static char * reallocline(phylip_t * fd, size_t newmaxsize)
 {
   char * temp = (char *)xmalloc((size_t)newmaxsize*sizeof(char));
 
-  memcpy(temp,fd->line,fd->line_size*sizeof(char));
+  if (fd->line && fd->line_size)
+    memcpy(temp,fd->line,fd->line_size*sizeof(char));
   free(fd->line);
   fd->line = temp;
   fd->line_maxsize = newmaxsize;
@@ -181,7 +182,8 @@ static int parse_header(const char * line,
   *compress_model = -1;
 
   /* read number of sequences */
-  if (!(*seq_count = args_getint(line,&len)))
+  *seq_count = args_getint(line,&len);
+  if (*seq_count <= 0)
   {
     bpp_errno = ERROR_PHYLIP_SYNTAX;
     snprintf(bpp_errmsg, 200, "Invalid number of sequences in header");
@@ -191,7 +193,8 @@ static int parse_header(const char * line,
   line += len;
 
   /* read sequence length */
-  if (!(*seq_len = args_getint(line,&len)))
+  *seq_len = args_getint(line,&len);
+  if (*seq_len <= 0)
   {
     bpp_errno = ERROR_PHYLIP_SYNTAX;
     snprintf(bpp_errmsg, 200, "Invalid sequence length in header");
@@ -393,7 +396,16 @@ msa_t * phylip_parse_interleaved(phylip_t * fd)
   msa_t * msa = (msa_t *)xcalloc(1,sizeof(msa_t));
   msa->compress_model = -1;
 
-  while (emptyline(fd->line)) getnextline2(fd);
+  while (fd->line && emptyline(fd->line))
+    getnextline2(fd);
+
+  if (!fd->line)
+  {
+    bpp_errno = ERROR_PHYLIP_SYNTAX;
+    snprintf(bpp_errmsg, 200, "Missing PHYLIP header");
+    msa_destroy(msa);
+    return NULL;
+  }
 
   /* read header */
   int is_compressed_il = 0, compress_model_il = -1;
@@ -403,7 +415,10 @@ msa_t * phylip_parse_interleaved(phylip_t * fd)
                     PHYLIP_INTERLEAVED,
                     &is_compressed_il,
                     &compress_model_il))
+  {
+    msa_destroy(msa);
     return NULL;
+  }
 
   if (is_compressed_il)
     fatal("Pattern-compressed format is not supported for interleaved phylip");
@@ -559,7 +574,16 @@ msa_t * phylip_parse_sequential(phylip_t * fd)
 
   msa_t * msa = (msa_t *)xcalloc(1,sizeof(msa_t));
 
-  while (emptyline(fd->line)) getnextline2(fd);
+  while (fd->line && emptyline(fd->line))
+    getnextline2(fd);
+
+  if (!fd->line)
+  {
+    bpp_errno = ERROR_PHYLIP_SYNTAX;
+    snprintf(bpp_errmsg, 200, "Missing PHYLIP header");
+    msa_destroy(msa);
+    return NULL;
+  }
 
   /* read header */
   if (!parse_header(fd->line,
@@ -568,7 +592,10 @@ msa_t * phylip_parse_sequential(phylip_t * fd)
                     PHYLIP_SEQUENTIAL,
                     &is_compressed,
                     &file_compress_model))
+  {
+    msa_destroy(msa);
     return NULL;
+  }
 
   msa->compress_model = file_compress_model;
 

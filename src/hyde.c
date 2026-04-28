@@ -1821,8 +1821,13 @@ void cmd_hyde()
   phylip_t * fd;
   msa_t ** msa_list;
 
-  if (opt_ci_alpha <= 0 || opt_ci_alpha >= 1)
+  if (!opt_msafile)
+    fatal("Please specify an input PHYLIP file using --msa");
+
+  if (!isfinite(opt_ci_alpha) || opt_ci_alpha <= 0 || opt_ci_alpha >= 1)
     fatal("Confidence interval alpha must be in (0,1)");
+  if (opt_bscount < 2)
+    fatal("Bootstrap replicate count must be at least 2");
   #if 0
   if (!opt_quiet)
     printf("Pre-computing table for site scores...\n");

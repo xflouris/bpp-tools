@@ -127,10 +127,11 @@ static long get_delstring(const char * line, const char * del, char ** value)
     return 0;
   }
 
+  long consumed = (long)(ws + (size_t)(end - start));
   *value = xstrdup(start);
 
   free(s);
-  return ws + end - start;
+  return consumed;
 }
 
 static long parse_mapping(const char * line, char ** tag, char ** species)

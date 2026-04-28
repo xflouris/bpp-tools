@@ -32,9 +32,10 @@ static long line_maxsize = 0;
 
 static void reallocline(long newmaxsize)
 {
-  char * temp = (char *)malloc(newmaxsize*sizeof(char));
+  char * temp = (char *)xmalloc((size_t)newmaxsize*sizeof(char));
 
-  memcpy(temp,line,line_size*sizeof(char));
+  if (line && line_size)
+    memcpy(temp,line,line_size*sizeof(char));
   free(line);
   line = temp;
   line_maxsize = newmaxsize;

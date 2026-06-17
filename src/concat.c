@@ -195,17 +195,14 @@ msa_t * concatenate(msa_t ** msa_list, long msa_count)
                                           sizeof(char));
 
   /* construct the concatenated alignment */
-  for (i = 0; i < msa_count; ++i)
-  {
-    for (j = 0; j < concat_seq_count; ++j)
-    {
-      for (k = 0; k < msa_list[i]->count; ++k)
-      {
-        if (!strcmp(msa_list[i]->label[k], concat->label[j]))
+  for (i = 0; i < msa_count; ++i) {                 /* loci */
+     for (j = 0; j < concat_seq_count; ++j) {       /* seqs */
+        for (k = 0; k < msa_list[i]->count; ++k) {  /* sites per locus */
+           if (!strcmp(msa_list[i]->label[k], concat->label[j]))
           break;
       }
       
-      if (k == msa_list[i]->count)
+      if (k == msa_list[i]->count)       /* this is problematic! */
       {
         /* no sequence j found in current alignment, fill with missing data */
         memset(concat->sequence[j]+offset, opt_nachar[0], msa_list[i]->length);

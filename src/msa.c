@@ -207,11 +207,12 @@ static int remove_ambiguous(msa_t * msa, int * ambiguous)
     if (j < i) break;
 
     /* swap sites */
+    int tmp;
     for (k = 0; k < msa->count; ++k)
-      SWAP(msa->sequence[k][i],msa->sequence[k][j]);
+       swap2(msa->sequence[k][i], msa->sequence[k][j], tmp);
 
     /* swap mark */
-    SWAP(ambiguous[j],ambiguous[i]);
+    swap2(ambiguous[j], ambiguous[i], tmp);
   }
 
   /* all ambiguous sites should now be at the right end. We will place

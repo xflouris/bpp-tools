@@ -53,12 +53,13 @@ static void plot_tree_with_grid(struct pdf_doc * pdf,
   unsigned int i,node_count = 0;
   unsigned int li,ri,xi;
   unsigned int tip_count = 0;
+  double PI = 3.14159265358979323846;
 
   long xtics = 6;
   double xtic_xshift = 3;
   double xtic_yshift = -3;
   double xtic_fontsize = 8;
-  double xtic_angle = -5*M_PI/12;
+  double xtic_angle = -5*PI/12;
   double ci_xshift = 0;
   double ci_yshift = 5;
   double ci_lw = 1;

@@ -358,6 +358,8 @@ typedef struct rtree_s
 #define SWAP(x,y) do { __typeof__ (x) _t = x; x = y; y = _t; } while(0)
 #endif
 
+#define swap2(a,b,tmp) { tmp=a; a=b; b=tmp; }
+
 #ifdef _MSC_VER
 #define PLL_POPCOUNT pll_popcount
 #define PLL_POPCOUNTL pll_popcount64
@@ -383,6 +385,7 @@ extern long opt_dstat_all;
 extern long opt_explode;
 extern long opt_extract;
 extern long opt_fbranch;
+extern long opt_triplet;
 extern char * opt_help;
 extern long opt_info;
 extern long opt_jackknife;
@@ -509,8 +512,12 @@ void msa_count_ambiguous_sites(msa_t * msa, const unsigned int * map);
 int msa_remove_missing_sequences(msa_t * msa);
 
 /* functions in dstat.c */
-
 void cmd_dstat(void);
+
+/* functions in triplet.c */
+void cmd_triplet(void);
+int evaluate_models(double mf0[], double sf0[], int nloci0, int length0, int logit_transform);
+int test_mean_var(double mf0[], double sf0[], int nloci0, int length0, int transform_triplet);
 
 /* functions in explode.c */
 
@@ -610,6 +617,9 @@ list_t * parse_mapfile(const char * mapfile);
 void rnd_init();
 void rnd_fini();
 double rndu(long index);
+int MultiNomialAliasSetTable(int ncat, double* prob, double* F, int* L);
+int MultiNomialAlias(long index, int n, int ncat, double* F, int* L, int* nobs);
+
 
 /* functions in remove.c */
 void cmd_remove();
@@ -648,3 +658,29 @@ int rtree_traverse(rnode_t * root,
 
 /* funtions in visual.c */
 void rtree_export_pdf(const rtree_t * rtree, const char * outfile);
+
+
+/* functions in ming2.c */
+double sum(double x[], int n);
+
+int ming2(FILE* fout, double* f, double(*fun)(double x[], int n),
+          int(*dfun)(double x[], double* f, double dx[], int n),
+          double x[], double xb[][2], double space[], double e, int n);
+
+/* functions in random.c */
+double legacy_rndu(long index);
+double legacy_rnd_symmetrical(long index);
+void legacy_init(void);
+void legacy_fini(void);
+double legacy_rndbeta(long index, double p, double q);
+double legacy_rndgamma(long index, double a);
+unsigned int get_legacy_rndu_status(long index);
+void set_legacy_rndu_status(long index, unsigned int x);
+void legacy_rnddirichlet(long index, double* output, double* alpha, long k);
+long legacy_rndpoisson(long index, double m);
+unsigned int* get_legacy_rndu_array(void);
+void set_legacy_rndu_array(unsigned int* x);
+double rndNormal(long index);
+int MultiNomialAlias(long index, int n, int ncat, double* F, int* L, int* nobs);
+int MultiNomialAliasSetTable(int ncat, double* prob, double* F, int* L);
+long legacy_rndbinomial(long index, int n, double p);

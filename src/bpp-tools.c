@@ -71,6 +71,8 @@ char * opt_species_list;
 char * opt_tag_list;
 char * opt_treefile;
 char * opt_outgroup;
+long opt_triplet;
+
 
 long mmx_present;
 long sse_present;
@@ -119,6 +121,7 @@ static struct option long_options[] =
   {"drop-loci",    required_argument, 0, 0 },  /* 30 */
   {"per-locus",    no_argument,       0, 0 },  /* 31 */
   {"show-labels",  no_argument,       0, 0 },  /* 32 */
+  {"triplet",      no_argument,       0, 0 },  /* 33 */
   { 0, 0, 0, 0 }
 };
 
@@ -316,6 +319,9 @@ void args_init(int argc, char ** argv)
         opt_show_labels = 1;
         break;
 
+      case 33:
+         opt_triplet = 1;
+         break;
       default:
         fatal("Internal error in option parsing");
     }
@@ -352,6 +358,8 @@ void args_init(int argc, char ** argv)
     commands++;
   if (opt_fbranch)
     commands++;
+  if (opt_triplet)
+    commands++; 
   if (opt_compress)
     commands++;
   if (opt_keep_loci)
@@ -509,6 +517,10 @@ int main (int argc, char * argv[])
   else if (opt_fbranch)
   {
     cmd_fbranch();
+  }
+  else if (opt_triplet)
+  {
+     cmd_triplet();
   }
   else if (opt_explode)
   {

@@ -294,14 +294,11 @@ static const double allele_weights[256][4] =
    {  0,   0,   0,   0}
  };
 
-static long perms[6][4] =
+static long perms[3][4] =
  {
    {0,1,2,3},
    {0,2,1,3},
-   {1,0,2,3},
-   {1,2,0,3},
-   {2,0,1,3},
-   {2,1,0,3}
+   {1,0,2,3}
  };
 
 static long getnumdigits(long n)
@@ -986,7 +983,7 @@ void cmd_dstat()
 
   /* TF: 7/12/2023
   changed to iterate 6 permutaions */
-  for (t = 0; t < 6; ++t)
+  for (t = 0; t < 3; ++t)
   {
     taxa[0] = taxa_list[perms[t][0]];
     taxa[1] = taxa_list[perms[t][1]];

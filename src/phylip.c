@@ -815,6 +815,9 @@ msa_t ** phylip_parse_multisequential(phylip_t * fd, long * count)
       if (*p) break;
     }
 
+    if (*count >50000 && *count% 1000 == 0) 
+      printf("%7ld loci done\r", *count);
+
     if (!p) break;
   }
 

@@ -23,26 +23,30 @@
 
 static void vecswap(int i, int j, int n, char ** x, int * oi)
 {
+  char *ctmp;
+  int itmp;
+
   while (n--)
   {
-    SWAP(x[i],x[j]);
+     swap2(x[i], x[j], ctmp);
     if (oi)
-      SWAP(oi[i],oi[j]);
+       swap2(oi[i], oi[j], itmp);
     ++i; ++j;
   }
 }
 
 static void ssort1(char ** x, int n, int depth, int * oi)
 {
-  int a,b,c,d,r,v;
+   int a, b, c, d, r, v, itmp;
+   char *ctmp;
 
   if (n <= 1) return;
 
   a = rand() % n;
 
-  SWAP(x[0], x[a]);
+  swap2(x[0], x[a], ctmp);
   if (oi)
-    SWAP(oi[0], oi[a]);
+    swap2(oi[0], oi[a], itmp);
 
   v = x[0][depth];
 
@@ -55,9 +59,9 @@ static void ssort1(char ** x, int n, int depth, int * oi)
     {
       if (r == 0)
       {
-        SWAP(x[a], x[b]);
+        swap2(x[a], x[b], ctmp);
         if (oi)
-          SWAP(oi[a], oi[b]);
+          swap2(oi[a], oi[b], itmp);
         ++a;
       }
       ++b;
@@ -66,17 +70,17 @@ static void ssort1(char ** x, int n, int depth, int * oi)
     {
       if (r == 0)
       {
-        SWAP(x[c], x[d]);
+        swap2(x[c], x[d], ctmp);
         if (oi)
-          SWAP(oi[c], oi[d]);
+          swap2(oi[c], oi[d], itmp);
         --d;
       }
       --c;
     }
     if (b > c) break;
-    SWAP(x[b], x[c]);
+    swap2(x[b], x[c], ctmp);
     if (oi)
-      SWAP(oi[b], oi[c]);
+      swap2(oi[b], oi[c], itmp);
     ++b; --c;
   }
 
